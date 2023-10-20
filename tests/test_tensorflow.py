@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import numpy as np
 from PIL import Image
+import sys
 
 # Load the pre-trained super resolution model from TFHub
 model_url = "https://tfhub.dev/captain-pool/esrgan-tf2/1"
@@ -31,8 +32,8 @@ def super_resolve_image(input_path, output_path):
     super_resolved_image.save(output_path)
 
 # Example usage
-input_image_path = "input_image.jpg"  # Provide the path to your input low-resolution image
-output_image_path = "super_resolved_image.jpg"  # Output path for the super-resolved image
+input_image_path = "../resources/im1.jpg" 
+output_image_path = "../results/im1-aug.jpg" 
 
 # Perform super resolution
 super_resolve_image(input_image_path, output_image_path)
