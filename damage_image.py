@@ -29,17 +29,6 @@ class Damager:
     def introduce_compression_artifacts(image, quality=10):
         _, encoded_image = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
         return cv2.imdecode(encoded_image, 1)
-    
-    @staticmethod
-    def add_noises(image, mean=1, stddev=2):
-            # add noise
-        mean = 1
-        stddev = 1  # You can adjust the standard deviation to control the amount of noise
-        noise = np.random.normal(mean, stddev, image.shape).astype(np.uint8)
-
-        noisy_image = cv2.add(image, noise)
-
-        return noisy_image
 
 if __name__ == "__main__":
     import cv2
