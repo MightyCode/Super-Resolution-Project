@@ -1,5 +1,6 @@
 Carla/
 .python-version
+resources/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,1 +1,3 @@
 waifu2x
+tensorflow
+tensorflow_hub
