@@ -9,7 +9,6 @@ if __name__ == "__main__":
     import cv2
     from metrics import Metric
 
-
     path1 = "resources/set14/baboon.png" if len(sys.argv) < 2 else sys.argv[1]
     image = cv2.imread(path1)
 

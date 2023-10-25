@@ -23,6 +23,11 @@ class Metric:
         max_pixel = 255.0
         psnr = 20 * np.log10(max_pixel / np.sqrt(mse))
 
+        """
+        max_pixel = 255.0
+        psnr = 10 * np.log10(max_pixel**2 / mse))
+        """
+
         return psnr
 
     @staticmethod
