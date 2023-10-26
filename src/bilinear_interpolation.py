@@ -4,25 +4,24 @@ import cv2
 import sys
 import os.path
 
-# export InterpolationLineaire
 
-def InterpolationLineaire(img, scaleFactor):
+def InterpolationBilineaire(img, scaleFactor):
     height, width, deep = img.shape
     newHeight = int(height * scaleFactor)
     newWidth = int(width * scaleFactor)
-    
+
     newImg = np.zeros((newHeight, newWidth, deep))
-    
+
     for line in range(newHeight):
         for column in range(newWidth):
-            posX = line / scaleFactor
-            posY = column / scaleFactor
-            
+            posX = line/scaleFactor
+            posY = column/scaleFactor
+
             x1 = int(posX)
             x2 = x1 + 1
             y1 = int(posY)
             y2 = y1 + 1
-            
+
             deltaX = posX - x1
             deltaY = posY - y1
             
@@ -30,29 +29,24 @@ def InterpolationLineaire(img, scaleFactor):
                 x2 = height - 1
             if y2 >= width:
                 y2 = width - 1
-                
+            
             newValue = np.zeros(deep)
-            
-            # for i in range(deep):  
-            #     newValue[i] = (1 - deltaX) * (1 - deltaY) * img[x1, y1, i] + \
-            #             (1 - deltaX) * deltaY * img[x1, y2, i] + \
-            #             deltaX * (1 - deltaY) * img[x2, y1, i] + \
-            #             deltaX * deltaY * img[x2, y2, i]
-            
-            newValue = (1 - deltaX) * (1 - deltaY) * img[x1, y1] + \
-                    (1 - deltaX) * deltaY * img[x1, y2] + \
-                    deltaX * (1 - deltaY) * img[x2, y1] + \
-                    deltaX * deltaY * img[x2, y2]
-                
-            
-            
+
+            valuePixelTopLeft = img[x1, y1] * (1 - deltaX) * (1 - deltaY)
+            valuePixelTopRight = img[x1, y2] * (1 - deltaX) * deltaY
+            valuePixelBottomLeft = img[x2, y1] * deltaX * (1 - deltaY)
+            valuePixelBottomRight = img[x2, y2] * deltaX * deltaY
+
+            newValue = valuePixelTopLeft + valuePixelTopRight + valuePixelBottomLeft + valuePixelBottomRight
+
             newImg[line, column] = newValue
-            
+
     return newImg/255
 
 
+
 if __name__ == "__main__":
-    
+
     imgPath = '../datasets/dataset/train/high_res/0.png'
 
     if len(sys.argv) > 1:
@@ -66,14 +60,15 @@ if __name__ == "__main__":
         sys.exit(1)
 
     img = cv2.imread(imgPath)
+    
     toPrint = False
+
     if toPrint:
         mp.imshow(img)
         mp.title("Image de faible résolution")
         mp.show()
     
-    
-    newImg = InterpolationLineaire(img, 2)
+    newImg = InterpolationBilineaire(img, 2)
     if toPrint:
         mp.imshow(newImg)
         mp.title("Image de haute résolution")
@@ -92,3 +87,4 @@ if __name__ == "__main__":
     print("Saving resised image as resized.png")
     cv2.imwrite('resized.png', newImg)
     
+    newImg = newImg * 255
