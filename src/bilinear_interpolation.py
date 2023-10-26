@@ -5,7 +5,7 @@ import sys
 import os.path
 
 
-def InterpolationBilineaire(img, scaleFactor):
+def BilinearInterpolation(img, scaleFactor):
     height, width, deep = img.shape
     newHeight = int(height * scaleFactor)
     newWidth = int(width * scaleFactor)
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         mp.title("Image de faible résolution")
         mp.show()
     
-    newImg = InterpolationBilineaire(img, 2)
+    newImg = BilinearInterpolation(img, 2)
     if toPrint:
         mp.imshow(newImg)
         mp.title("Image de haute résolution")

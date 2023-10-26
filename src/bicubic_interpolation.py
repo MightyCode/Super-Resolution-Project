@@ -4,47 +4,49 @@ import cv2
 import sys
 import os.path
 
-# export InterpolationLineaire
 
-def LinearInterpolation(img, scaleFactor):
+def BicubicInterpolation(img, scaleFactor):
     height, width, deep = img.shape
     newHeight = int(height * scaleFactor)
     newWidth = int(width * scaleFactor)
-    
+
     newImg = np.zeros((newHeight, newWidth, deep))
-    
+
     for line in range(newHeight):
         for column in range(newWidth):
             posX = line / scaleFactor
             posY = column / scaleFactor
-            
-            x1 = int(posX)
-            x2 = x1 + 1
-            y1 = int(posY)
-            y2 = y1 + 1
-            
-            deltaX = posX - x1
-            deltaY = posY - y1
-            
-            if x2 >= height:
-                x2 = height - 1
-            if y2 >= width:
-                y2 = width - 1
-                
-            newValue = np.zeros(deep)
-            
-            newValue = (1 - deltaX) * (1 - deltaY) * img[x1, y1] + \
-                    (1 - deltaX) * deltaY * img[x1, y2] + \
-                    deltaX * (1 - deltaY) * img[x2, y1] + \
-                    deltaX * deltaY * img[x2, y2]
-            
-            newImg[line, column] = newValue
-            
-    return newImg/255
+
+            x = int(posX)
+            y = int(posY)
+
+            deltaX = posX - x
+            deltaY = posY - y
+
+            coeffX = [cubicFunction(deltaX + 1), cubicFunction(deltaX), cubicFunction(1 - deltaX), cubicFunction(2 - deltaX)]
+            coeffY = [cubicFunction(deltaY + 1), cubicFunction(deltaY), cubicFunction(1 - deltaY), cubicFunction(2 - deltaY)]
+
+            pixel_value = np.zeros(deep)
+            for i in range(4):
+                for j in range(4):
+                    tmpX = min(max(x - 1 + j, 0), height - 1)
+                    tmpY = min(max(y - 1 + i, 0), width - 1)
+
+                    pixel_value += coeffX[j] * coeffY[i] * img[tmpX, tmpY]
+
+            newImg[line, column] = pixel_value
+
+    return newImg
+
+def cubicFunction(t):
+    if t > 2:
+        return 0
+    return t**3 - 2*t**2 + 1
+
 
 
 if __name__ == "__main__":
-    
+
     imgPath = '../datasets/dataset/train/high_res/0.png'
 
     if len(sys.argv) > 1:
@@ -58,14 +60,15 @@ if __name__ == "__main__":
         sys.exit(1)
 
     img = cv2.imread(imgPath)
+    
     toPrint = False
+
     if toPrint:
         mp.imshow(img)
         mp.title("Image de faible résolution")
         mp.show()
     
-    
-    newImg = LinearInterpolation(img, 2)
+    newImg = BicubicInterpolation(img, 2)
     if toPrint:
         mp.imshow(newImg)
         mp.title("Image de haute résolution")
@@ -84,3 +87,4 @@ if __name__ == "__main__":
     print("Saving resised image as resized.png")
     cv2.imwrite('resized.png', newImg)
     
+    newImg = newImg * 255
