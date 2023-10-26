@@ -21,6 +21,9 @@ class Reducer:
     def _pooling_2D(self, path: str, function: Callable[[List[int]], int]):
         img=cv2.imread(path)
 
+        if img is None:
+            raise FileNotFoundError(path)
+
         width, height, channels = img.shape
         width, height = int(width/2), int(height/2)
 
@@ -55,6 +58,22 @@ class Reducer:
     def _get_rgb_values_by_index(self, r_channel, g_channel, b_channel, i: int, j: int):
         return r_channel[i][j], g_channel[i][j], b_channel[i][j]
     
+    def nearest_neighbor(self, path: str, scale: float):
+        img = cv2.imread(path)
+
+        if img is None:
+            raise FileNotFoundError(path)
+        
+        h, w, channels = img.shape
+        w_res, h_res = int(w*scale), int(h*scale)
+        res = np.zeros((h_res, w_res, channels))
+        for i in range(h_res):
+            for j in range(w_res):
+                nearest_i = round(i/scale)
+                nearest_j = round(j/scale)
+                res[i, j] = img[nearest_i, nearest_j]
+        return res
+    
 
 if __name__ == "__main__":
     reducer = Reducer()
@@ -72,3 +91,9 @@ if __name__ == "__main__":
     cv2.imshow('output', res)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+    # path = "resources/dk.jpg"
+    # spath = "results/test.jpg"
+    # img = cv2.imread(path)
+    # test = reducer.nearest_neighbor(path, 0.1)
+    # cv2.imwrite(spath, test)
