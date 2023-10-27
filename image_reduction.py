@@ -8,8 +8,6 @@ class Reducer:
         self._mean: Callable[[List[int]], int] = lambda array: sum(array)//4
 
     def opencv_reduction(self, path: str, reduction_factor: float= 0.5):
-        img=cv2.imread(path)
-
         return cv2.resize(path, None, fx = reduction_factor, fy = reduction_factor)
     
     def max_pooling_2D(self, path: str):
@@ -76,13 +74,17 @@ class Reducer:
     
 
 if __name__ == "__main__":
+    import sys
     reducer = Reducer()
 
-    path: str = 'resources/1.png'
+    path: str = 'resources/1.png' if len(sys.argv) < 2 else sys.argv[1]
     img = cv2.imread(path)
 
-    res = reducer.mean_pooling_2D(path)
-    saving_path: str = 'results/1-downsized.png'
+    res = reducer.nearest_neighbor(path, 0.25)
+    #res = reducer.mean_pooling_2D(path)
+
+
+    saving_path: str = 'results/1-downsized.png' if len(sys.argv) < 3 else sys.argv[2]
     cv2.imwrite(saving_path, res)
 
     res = cv2.imread(saving_path)
@@ -92,8 +94,3 @@ if __name__ == "__main__":
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-    # path = "resources/dk.jpg"
-    # spath = "results/test.jpg"
-    # img = cv2.imread(path)
-    # test = reducer.nearest_neighbor(path, 0.1)
-    # cv2.imwrite(spath, test)

@@ -16,7 +16,7 @@ if __name__ == "__main__":
     print(image[:1], inverted_image[:1])
 
     print(f"MSE : {Metric.MSE(image, inverted_image)}")
-    print(f"PSCN : {Metric.PSCN(image, inverted_image)}")
+    print(f"PSNR : {Metric.PSNR(image, inverted_image)}")
     print(f"SSMH : {Metric.SSMH(image, inverted_image)}")
 
     

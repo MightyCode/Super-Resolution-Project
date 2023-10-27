@@ -7,12 +7,12 @@ class Metric:
         if image1.shape != image2.shape:
             raise ValueError("Images must have the same dimensions.")
         
-        mse = np.mean((image1 - image2) ** 2) 
+        mse = np.sum(np.subtract(image1, image2) ** 2) / (image1.shape[0] * image1.shape[1])
 
         return mse
 
     @staticmethod
-    def PSCN(image1, image2):
+    def PSNR(image1, image2):
         if image1.shape != image2.shape:
             raise ValueError("Images must have the same dimensions.")
         
@@ -79,7 +79,7 @@ class Metric:
 
 
 if __name__ == "__main__":
-    import sys, os
+    import sys
 
     # Load image
     path1 = "resources/set14/baboon.png" if len(sys.argv) < 2 else sys.argv[1]
@@ -89,6 +89,6 @@ if __name__ == "__main__":
     image2 = cv2.imread(path2)
 
     print(f"MSE : {Metric.MSE(image1, image2)}")
-    print(f"PSCN : {Metric.PSCN(image1, image2)}")
+    print(f"PSCN : {Metric.PSNR(image1, image2)}")
     print(f"SSMH : {Metric.SSMH(image1, image2)}")
     print(f"SSIM : {Metric.SSIM(image1, image2)}")
