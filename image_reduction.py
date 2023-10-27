@@ -78,11 +78,11 @@ class Reducer:
 if __name__ == "__main__":
     reducer = Reducer()
 
-    path: str = 'resources/alakazam.png'
+    path: str = 'resources/1.png'
     img = cv2.imread(path)
 
     res = reducer.mean_pooling_2D(path)
-    saving_path: str = 'results/test.png'
+    saving_path: str = 'results/1-downsized.png'
     cv2.imwrite(saving_path, res)
 
     res = cv2.imread(saving_path)
