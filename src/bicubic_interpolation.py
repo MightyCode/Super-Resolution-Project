@@ -85,6 +85,6 @@ if __name__ == "__main__":
     
     newImg = newImg * 255
     print("Saving resised image as resized.png")
-    cv2.imwrite('resized.png', newImg)
+    cv2.imwrite('../resources/resized.png', newImg)
     
     newImg = newImg * 255
