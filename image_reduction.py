@@ -83,7 +83,6 @@ if __name__ == "__main__":
     res = reducer.nearest_neighbor(path, 0.25)
     #res = reducer.mean_pooling_2D(path)
 
-
     saving_path: str = 'results/1-downsized.png' if len(sys.argv) < 3 else sys.argv[2]
     cv2.imwrite(saving_path, res)
 
