@@ -24,10 +24,18 @@ def download_and_extract_dataset():
     else:
         print(f'{resources_folder + file_name} already existes, no downloading required')
 
-    bash_command = "tar -xvf " + resources_folder + file_name + " -C " + resources_folder
+    bash_command = "tar -xf " + resources_folder + file_name + " -C " + resources_folder
     print(f'executing : {bash_command}')
     os.system(bash_command)
-    print('done')
+
+    os.remove(resources_folder + file_name)
+    print(f'{file_name} removed after being extracted')
+
+    female_folder = os.path.join(resources_folder, 'pokemon', 'sugimori', 'female')
+    if os.path.exists(female_folder):
+        bash_command = "rm -rf " + female_folder
+        print(f'executing : {bash_command}')
+        os.system(bash_command)
 
 if __name__ == "__main__":
     download_and_extract_dataset()
