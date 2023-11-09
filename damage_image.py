@@ -30,6 +30,8 @@ class Damager:
         _, encoded_image = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
         return cv2.imdecode(encoded_image, 1)
 
+
+
 if __name__ == "__main__":
     import cv2
     import numpy as np
@@ -80,7 +82,7 @@ if __name__ == "__main__":
     from metrics import Metric
 
     mse = Metric.MSE(image, damaged_image)
-    pscn = Metric.PSCN(image, damaged_image)
+    pscn = Metric.PSNR(image, damaged_image)
     ssmh = Metric.SSMH(image, damaged_image)
     ssim = Metric.SSIM(image, damaged_image)
 

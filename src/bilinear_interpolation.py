@@ -1,8 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as mp
 import cv2
-import sys
-import os.path
 
 
 def BilinearInterpolation(img, scaleFactor):
@@ -46,14 +44,10 @@ def BilinearInterpolation(img, scaleFactor):
 
 
 if __name__ == "__main__":
+    import sys
+    import os.path
 
-    imgPath = '../datasets/dataset/train/high_res/0.png'
-
-    if len(sys.argv) > 1:
-        imgPath = sys.argv[1]
-        if not os.path.isfile(imgPath):
-            print("Error: file not found")
-            sys.exit(1)
+    imgPath = '../datasets/dataset/train/high_res/0.png' if len(sys.argv) < 2 else sys.argv[1]
 
     if not os.path.isfile(imgPath):
         print("Error: No file specified: use 'python bilinear_interpolation.py <path_to_file>'")
@@ -68,7 +62,7 @@ if __name__ == "__main__":
         mp.title("Image de faible résolution")
         mp.show()
     
-    newImg = BilinearInterpolation(img, 2)
+    newImg = BilinearInterpolation(img, 10.24)
     if toPrint:
         mp.imshow(newImg)
         mp.title("Image de haute résolution")
@@ -85,6 +79,7 @@ if __name__ == "__main__":
     
     newImg = newImg * 255
     print("Saving resised image as resized.png")
-    cv2.imwrite('../resources/resized.png', newImg)
+    result = "'../resources/resized.png'" if len(sys.argv) < 3 else sys.argv[2]
+    cv2.imwrite(result, newImg)
     
     newImg = newImg * 255

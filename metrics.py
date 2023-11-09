@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+import skimage
 
 class Metric:
     @staticmethod
@@ -7,12 +8,15 @@ class Metric:
         if image1.shape != image2.shape:
             raise ValueError("Images must have the same dimensions.")
         
-        mse = np.mean((image1 - image2) ** 2) 
+        image1_f = image1.astype(float)
+        image2_f = image2.astype(float)
+
+        mse = np.mean((image1_f - image2_f) ** 2, dtype=np.float64)
 
         return mse
 
     @staticmethod
-    def PSCN(image1, image2):
+    def PSNR(image1, image2):
         if image1.shape != image2.shape:
             raise ValueError("Images must have the same dimensions.")
         
@@ -53,33 +57,44 @@ class Metric:
     def SSIM(image1, image2, K1=0.01, K2=0.03, L=255):
         C1 = (K1 * L) ** 2
         C2 = (K2 * L) ** 2
+        C3 = C2 / 2
 
-        image1_gray = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
-        image2_gray = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+        # Convert the input images to numpy arrays
+        image1 = np.array(image1, dtype=float)
+        image2 = np.array(image2, dtype=float)
 
-        # Mean of the input images
-        mu1 = np.mean(image1_gray)
-        mu2 = np.mean(image2_gray)
+        # Calculate the means of the images
+        mean1 = np.mean(image1)
+        mean2 = np.mean(image2)
 
-        # Variance of the input images
-        var1 = np.var(image1_gray)
-        var2 = np.var(image2_gray)
+        # Calculate the variances of the images
+        var1 = np.var(image1)
+        var2 = np.var(image2)
 
-        # Covariance between the input images
-        covar = np.cov(image1_gray, image2_gray, rowvar=False)[0, 1]
+        # Calculate the covariance
+        cov12 = np.mean((image1 - mean1) * (image2 - mean2))
 
-        # SSIM formula components
-        numerator = (2 * mu1 * mu2 + C1) * (2 * covar + C2)
-        denominator = (mu1 ** 2 + mu2 ** 2 + C1) * (var1 + var2 + C2)
+        # Calculate the SSIM components
+        SSIM_L = (2 * mean1 * mean2 + C1) / (mean1**2 + mean2**2 + C1)
+        SSIM_C = (2 * cov12 + C2) / (var1 + var2 + C2)
+        SSIM_S = (cov12 + C3) / (np.sqrt(var1) * np.sqrt(var2) + C3)
 
-        # Calculate SSIM
-        ssim = numerator / denominator
+        # Calculate the overall SSIM value
+        SSIM = SSIM_L * SSIM_C * SSIM_S
 
-        return ssim
+        return SSIM
 
+    def SSIM_ref(image1, image2):
+        image1_gray = np.mean(image1, axis=2)
+        image2_gray = np.mean(image2, axis=2)
+
+        print(image2_gray)
+
+        # Compute SSIM
+        return skimage.metrics.structural_similarity(image1_gray, image2_gray, data_range=255)
 
 if __name__ == "__main__":
-    import sys, os
+    import sys
 
     # Load image
     path1 = "resources/set14/baboon.png" if len(sys.argv) < 2 else sys.argv[1]
@@ -89,6 +104,6 @@ if __name__ == "__main__":
     image2 = cv2.imread(path2)
 
     print(f"MSE : {Metric.MSE(image1, image2)}")
-    print(f"PSCN : {Metric.PSCN(image1, image2)}")
+    print(f"PSNR : {Metric.PSNR(image1, image2)}")
     print(f"SSMH : {Metric.SSMH(image1, image2)}")
-    print(f"SSIM : {Metric.SSIM(image1, image2)}")
+    print(f"SSIM : {Metric.SSIM(image1, image2)} | SKimage SSIM : {Metric.SSIM_ref(image1, image2)}")
