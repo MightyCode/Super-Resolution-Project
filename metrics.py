@@ -111,8 +111,9 @@ class Metric:
         mean1 = np.mean(image1)
         mean2 = np.mean(image2)
 
-        var1 = np.var(image1)
-        var2 = np.var(image2)
+        # use variance unbiased as does skimage
+        var1 = np.var(image1, ddof=0)
+        var2 = np.var(image2, ddof=0)
 
         cov12 = np.mean((image1 - mean1) * (image2 - mean2))
 
