@@ -7,11 +7,8 @@ class Metric:
     def MSE(image1, image2):
         if image1.shape != image2.shape:
             raise ValueError("Images must have the same dimensions.")
-        
-        image1_f = image1.astype(float)
-        image2_f = image2.astype(float)
 
-        mse = np.mean((image1_f - image2_f) ** 2, dtype=np.float64)
+        mse = np.mean((image1 - image2) ** 2, dtype=np.float64)
 
         return mse
 
@@ -20,11 +17,14 @@ class Metric:
         if image1.shape != image2.shape:
             raise ValueError("Images must have the same dimensions.")
         
-        mse = Metric.MSE(image1, image2)
+        image1_f = image1.astype(float) * 255.0
+        image2_f = image2.astype(float) * 255.0
+
+        mse = Metric.MSE(image1_f, image2_f)
         if mse == 0:
             return float('inf')
         
-        max_pixel = 255.0
+        max_pixel = max(np.max(image1_f), np.max(image2_f))
         psnr = 20 * np.log10(max_pixel / np.sqrt(mse))
 
         """
