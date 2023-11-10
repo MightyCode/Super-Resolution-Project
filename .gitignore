@@ -172,4 +172,4 @@ datasets/
 src/*.png
 
 #weigths
-weigths/
+weigths/*
