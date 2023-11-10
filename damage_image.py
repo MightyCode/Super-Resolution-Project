@@ -1,3 +1,6 @@
+import cv2
+import numpy as np
+
 class Damager:
     @staticmethod
     def add_gaussian_noise(image, mean=0, std=25):
@@ -33,8 +36,6 @@ class Damager:
 
 
 if __name__ == "__main__":
-    import cv2
-    import numpy as np
     import sys, os
     import matplotlib.pyplot as plt
 
@@ -84,7 +85,7 @@ if __name__ == "__main__":
     mse = Metric.MSE(image, damaged_image)
     pscn = Metric.PSNR(image, damaged_image)
     ssmh = Metric.SSMH(image, damaged_image)
-    ssim = Metric.SSIM(image, damaged_image)
+    ssim = Metric.SSIM_2(image, damaged_image)
 
     plt.text(-360, 600, f"MSE : {round(mse, 3)}", ha="center")
     plt.text(-150, 600, f"PSCN : {round(pscn, 3)}", ha="center")

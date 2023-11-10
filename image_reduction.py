@@ -28,7 +28,6 @@ class Reducer:
         b_input_channel = img[:,:,0] # get blue channel
         g_input_channel = img[:,:,1] # get green channel
         r_input_channel = img[:,:,2] # get red channel
-        print(img.shape)
 
         result = np.zeros((width, height, channels))
     
@@ -79,17 +78,10 @@ if __name__ == "__main__":
     reducer = Reducer()
 
     path: str = 'resources/pokemon/sugimori/1.png' if len(sys.argv) < 2 else sys.argv[1]
-    img = cv2.imread(path)
 
     res = reducer.mean_pooling_2D(path)
 
-    saving_path: str = 'results/1-downsized.png' if len(sys.argv) < 3 else sys.argv[2]
+    saving_path: str = path.replace("high_res", "low_res")
+    
     cv2.imwrite(saving_path, res)
-
-    res = cv2.imread(saving_path)
-
-    cv2.imshow('input', img)
-    cv2.imshow('output', res)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
 
