@@ -171,5 +171,5 @@ cython_debug/
 datasets/
 src/*.png
 
-#weigths
-weigths/*
+#weights
+weights/

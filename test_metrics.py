@@ -14,7 +14,6 @@ if __name__ == "__main__":
 
     inverted_image = cv2.bitwise_not(image)
     
-
     print(f"MSE : {Metric.MSE(image, inverted_image)} | SKImage MSE : {mean_squared_error(image, inverted_image)}")
     print(f"PSNR : {Metric.PSNR(image, inverted_image)}")
     print(f"SSMH : {Metric.SSMH(image, inverted_image)}")
