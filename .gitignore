@@ -170,3 +170,6 @@ cython_debug/
 #datasets
 datasets/
 src/*.png
+
+#weigths
+weigths/
