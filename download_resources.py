@@ -63,6 +63,6 @@ def get_dataset(url:str, dest:str = "dataset"):
     print("Done!")
 
 if __name__ == "__main__":
-    download_and_extract_dataset()
+    #download_and_extract_dataset()
     get_dataset("https://drive.google.com/uc?export=download&id=16cXZ2etHDMrgXSXtLlZ5HuPh7e0KSkVk", "256")
     get_dataset("https://drive.google.com/uc?export=download&id=19WNetKoHChsVk4KDBAgnhLQEcS2ILgId", "128")
