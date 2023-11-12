@@ -10,7 +10,6 @@ class RDN(nn.Module):
     The network is the one described in https://arxiv.org/abs/1802.08797 (Zhang et al. 2018).
 
     Args:
-        arch_params: dictionary, contains the network parameters C, D, G, G0, scale.
         c_dim: integer, number of channels of the input image.
         kernel_size: integer, common kernel size for convolutions.
         upscaling: string, 'ups' or 'shuffle', determines which implementation
@@ -24,12 +23,10 @@ class RDN(nn.Module):
         G: integer, number of convolution output filters inside the RDBs.
         G0: integer, number of output filters of each RDB.
         scaling_factor: integer, the scaling factor in scale.
-        name: name used to identify what upscaling network is used during training.
-        model._name: identifies this network as the generator network
-            in the compound model built by the trainer class.
     """
     
-    def __init__(self, C , D, G ,G0, scaling_factor, kernel_size=3, c_dims=3, upscaling='ups', weights=None):
+    def __init__(self, C , D, G ,G0, scaling_factor, kernel_size=3, c_dims=3, upscaling='shuffle', weights=None):
+        super(RDN, self).__init__()
         self.D = D
         self.G = G
         self.G0 = G0
@@ -42,70 +39,96 @@ class RDN(nn.Module):
         if weights:
             pass
             #TO DO - load weights
+
+        self._prepare()
         
+    
+    def _prepare(self):
+        """Prepare the network for training by initializing weights."""
+        self.F_m1 = nn.Conv2d(in_channels=self.c_dims, out_channels=self.G0, kernel_size=self.kernel_size, padding='same') #F_m1 = F minus 1
+        self.F_0 = nn.Conv2d(in_channels=self.G0, out_channels=self.G0, kernel_size=self.kernel_size, padding='same')
+        self.F = []
+        for d in range(self.D):
+            self.F.append(self._make_RDBs())
+        
+        self.GFF1 = nn.Conv2d(in_channels=self.G0 + self.D * self.G, out_channels=self.G0, kernel_size=1, padding='same')
+        self.GFF2 = nn.Conv2d(in_channels=self.G0, out_channels=self.G0, kernel_size=3, padding='same')
+
+        self.FU = self._make_upsampling()
+
+        self.F_last = nn.Conv2d(in_channels=16, out_channels=self.c_dims, kernel_size=self.kernel_size, padding='same')
+        
+        
+
+    def _make_RDBs(self):
+        """Builds the residual dense blocks."""
+        rl = [] #rl for residual layers
+        for c in range(1 , self.C + 1):
+            rl.append(nn.Conv2d(in_channels=self.G0 + (c-1)*self.G, out_channels=self.G, kernel_size=self.kernel_size, padding='same'))
+
+        rl.append(nn.Conv2d(in_channels=self.G0 + self.C*self.G, out_channels=self.G, kernel_size=1, padding='same')) #Local feature fusion
+        return rl
     
 
-    def prepare(self):
-        """Prepare the network for training by initializing weights."""
-        self.F_m1 = nn.Conv2d(self.c_dims, self.G0, kernel_size=self.kernel_size, padding='same')
-        self.F_0 = nn.Conv2d(self.c_dims, self.G0, kernel_size=self.kernel_size, padding='same')
-        self.F_D = self._make_residual_blocks()
-        self.GFF1 = nn.Conv2d(self.c_dims, self.G0, kernel_size=1, padding='same')
-        self.GFF2 = nn.Conv2d(self.c_dims, self.G0, kernel_size=self.kernel_size, padding='same')
-        self.FU = self._UPN()
-        self.SR = nn.Conv2d(self.c_dims, self.c_dims, kernel_size=self.kernel_size, padding='same')
-        
-        
-    
-    def _make_residual_blocks(self):
-        blocks = []
-        for _ in range(self.D):
-            blocks.append(self._make_residual_block())
-        return nn.Sequential(*blocks)
-    
-    
-    def _make_residual_block(self):
-        conv_relu = []
-        for _ in range(self.C):
-            conv_relu.append(nn.Conv2d(self.c_dims, self.G, kernel_size=self.kernel_size, padding='same'))
-            conv_relu.append(nn.ReLU(inplace=True))
-        return nn.Sequential(*conv_relu)
-    
-    def _UPN(self):
-        """ Upscaling network """
-        if self.upscaling == 'ups':
+    def _make_upsampling(self):
+        """return an upsampling function that multiply per scale the height and the weight of the image."""
+        # return F.interpolate #maybe add conv to learn the upsampling
+        if self.upscaling == 'shuffle':
+            UPN1 = nn.Conv2d(in_channels=self.G0, out_channels=64, kernel_size=5, padding='same')
+            UPN1_Relu = nn.ReLU()
+            UPN2 = nn.Conv2d(in_channels=64, out_channels=32, kernel_size=3, padding='same')
+            UPN2_Relu = nn.ReLU()
+            UPN3 = nn.Conv2d(in_channels=32, out_channels=self.c_dims * self.scale ** 2, kernel_size=3, padding='same')
+            #TODO: add shuffle
+            pass
+            return nn.Sequential(UPN1, UPN1_Relu, UPN2, UPN2_Relu, UPN3)
+        elif self.upscaling == 'ups':
             return nn.Sequential(
-                nn.Conv2d(self.c_dims, 64, kernel_size=5, strides=1, padding='same'),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(self.c_dims, 32, kernel_size=5, strides=1, padding='same'),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(self.c_dims, self.c_dims * self.scale ** 2, kernel_size=self.kernel_size, padding='same'),
-                nn.PixelShuffle(self.scale),
-            )
-        elif self.upscaling == 'shuffle':
-            return nn.Sequential(
-                nn.Conv2d(self.c_dims, 64, kernel_size=5, strides=1, padding='same'),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(self.c_dims, 32, kernel_size=5, strides=1, padding='same'),
-                nn.ReLU(inplace=True),
-                nn.PixelShuffle(self.scale),
+                nn.Conv2d(in_channels=self.G0, out_channels=64, kernel_size=5, padding='same'),
+                nn.ReLU(),
+                nn.Conv2d(in_channels=64, out_channels=32, kernel_size=3, padding='same'),
+                nn.ReLU(),
+                nn.Conv2d(in_channels=32, out_channels=self.c_dims * self.scale ** 2, kernel_size=3, padding='same')
             )
         else:
-            raise ValueError("Invalid upscaling method selected")
-    
-    def forward(self, x):
+            raise ValueError('Invalid choice of upscaling layer.')
+
+
+    def forward(self, I_LR):
         """Forward pass of the network.
 
         Args:
-            x: input image, tensor of shape (N, C, H, W).
+            I_LR: input image, tensor of shape (N, C, H, W).
 
         Returns:
-            x: output image, tensor of shape (N, C, H, W).
+            H_LR: output image, tensor of shape (N, C, scale*H, scale*W).
         """
-        x = self.F_m1(x)
-        x1 = self.F_0(x)
-        x = self.F_D(x1)
-        x = self.GFF1(x) + x1
-        x = self.FU(x)
-        x = self.SR(x)
-        return x
+        
+        f_m1 = F.relu(self.F_m1(I_LR))
+        f_0 = F.relu(self.F_0(f_m1))
+        f = [f_0]
+        for d in range(0, self.D):
+            print("d =", d)
+            f_d_c = [f_0]
+            for c in range(0, self.C):
+                tmp = torch.cat(f_d_c, dim=0)
+                assert d < len(self.F)
+                f_d_c.append(F.relu(self.F[d][c](tmp)))
+            f_d_c = torch.cat(f_d_c, dim=0)
+            f_d_LF = F.relu(self.F[d][self.C](f_d_c))
+            f_dm1 = f[d]
+            f.append(f_d_LF + f_dm1)
+        
+        f_GF = self.GFF1(torch.cat(f, dim=0))
+        f_GF = self.GFF2(f_GF)
+        
+        f_DF = f_m1 + f_GF
+
+        f_U = self.FU(f_DF)
+        if self.upscaling == 'ups':
+            f_U = f_U.unsqueeze(1)
+            f_U = F.interpolate(f_U, scale_factor=self.scale, mode='bilinear', align_corners=False)
+            f_U = f_U.squeeze(1)
+
+        I_HR = F.sigmoid(self.F_last(f_U))
+        return I_HR
