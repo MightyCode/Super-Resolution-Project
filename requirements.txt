@@ -8,3 +8,5 @@ torch
 torchvision
 ipykernel
 tqdm
+scikit-image
+gdown
