@@ -25,18 +25,28 @@ from matplotlib import pyplot as plt
 
 
 if __name__ == '__main__':
-    img = Image.open('resources/pokemon_jpg/pokemon_jpg/1.jpg')
+    device = None
+    # import torch_directml #WINDOWS users
+    # device = torch_directml.device()
+    if not device:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    #image loading
+    img = Image.open('datasets/dataset/train/low_res/0.png')
     plt.imshow(img)
     plt.show()
     img = torchvision.transforms.ToTensor()(img)
-    rdn = RDN(C=6 , D=20, G=64 ,G0=64, scaling_factor=2, kernel_size=3, c_dims=img.shape[0], upscaling='ups', weights=None)
-    print(rdn)
+    img = img.to(device)
+
+    #model creation
+    rdn = RDN(C=6 , D=20, G=32 ,G0=32, scaling_factor=2, kernel_size=3, c_dims=img.shape[0], upscaling='ups', weights=None)
+    rdn.to(device)
     rdn.eval()
+
+    #image processing
     new_img = rdn(img)
-    print(new_img.shape)
-    new_img = new_img.detach().numpy()
+    new_img = new_img.to('cpu').detach().numpy()
     new_img = np.transpose(new_img, (1, 2, 0))
-    print(new_img.shape)
     plt.imshow(new_img)
     plt.show()
 

@@ -50,6 +50,7 @@ class RDN(nn.Module):
         self.F = []
         for d in range(self.D):
             self.F.append(self._make_RDBs())
+        self.F = nn.Sequential(*self.F)
         
         self.GFF1 = nn.Conv2d(in_channels=self.G0 + self.D * self.G, out_channels=self.G0, kernel_size=1, padding='same')
         self.GFF2 = nn.Conv2d(in_channels=self.G0, out_channels=self.G0, kernel_size=3, padding='same')
@@ -67,6 +68,7 @@ class RDN(nn.Module):
             rl.append(nn.Conv2d(in_channels=self.G0 + (c-1)*self.G, out_channels=self.G, kernel_size=self.kernel_size, padding='same'))
 
         rl.append(nn.Conv2d(in_channels=self.G0 + self.C*self.G, out_channels=self.G, kernel_size=1, padding='same')) #Local feature fusion
+        rl = nn.Sequential(*rl)
         return rl
     
 
