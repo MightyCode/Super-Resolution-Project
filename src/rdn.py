@@ -25,7 +25,7 @@ class RDN(nn.Module):
         scaling_factor: integer, the scaling factor in scale.
     """
     
-    def __init__(self, C , D, G ,G0, scaling_factor, kernel_size=3, c_dims=3, upscaling='shuffle', weights=None):
+    def __init__(self, C , D, G ,G0, scaling_factor, kernel_size=3, c_dims=3, upscaling='ups', weights=None):
         super(RDN, self).__init__()
         self.D = D
         self.G = G
@@ -56,7 +56,7 @@ class RDN(nn.Module):
 
         self.FU = self._make_upsampling()
 
-        self.F_last = nn.Conv2d(in_channels=16, out_channels=self.c_dims, kernel_size=self.kernel_size, padding='same')
+        self.F_last = nn.Conv2d(in_channels=self.c_dims * self.scale ** 2, out_channels=self.c_dims, kernel_size=self.kernel_size, padding='same')
         
         
 
@@ -106,29 +106,26 @@ class RDN(nn.Module):
         
         f_m1 = F.relu(self.F_m1(I_LR))
         f_0 = F.relu(self.F_0(f_m1))
-        f = [f_0]
+        f = f_0
+        f_tmp = f_0
         for d in range(0, self.D):
-            print("d =", d)
-            f_d_c = [f_0]
+            f_d_c = f_tmp
             for c in range(0, self.C):
-                tmp = torch.cat(f_d_c, dim=0)
-                assert d < len(self.F)
-                f_d_c.append(F.relu(self.F[d][c](tmp)))
-            f_d_c = torch.cat(f_d_c, dim=0)
+                f_d_c_tmp = F.relu(self.F[d][c](f_d_c))
+                f_d_c = torch.cat((f_d_c, f_d_c_tmp), dim=0)
             f_d_LF = F.relu(self.F[d][self.C](f_d_c))
-            f_dm1 = f[d]
-            f.append(f_d_LF + f_dm1)
+            f_tmp = f_d_LF + f_tmp
+            f = torch.cat((f, f_tmp), dim=0)
         
-        f_GF = self.GFF1(torch.cat(f, dim=0))
+        f_GF = self.GFF1(f)
         f_GF = self.GFF2(f_GF)
         
         f_DF = f_m1 + f_GF
-
+        
         f_U = self.FU(f_DF)
         if self.upscaling == 'ups':
             f_U = f_U.unsqueeze(1)
             f_U = F.interpolate(f_U, scale_factor=self.scale, mode='bilinear', align_corners=False)
             f_U = f_U.squeeze(1)
-
-        I_HR = F.sigmoid(self.F_last(f_U))
+        I_HR = torch.sigmoid(self.F_last(f_U))
         return I_HR

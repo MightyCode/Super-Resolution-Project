@@ -29,10 +29,9 @@ if __name__ == '__main__':
     plt.imshow(img)
     plt.show()
     img = torchvision.transforms.ToTensor()(img)
-    print(img.shape)
-    rdn = RDN(C=6 , D=9, G=64 ,G0=64, scaling_factor=2, kernel_size=3, c_dims=img.shape[0], upscaling='ups', weights=None)
+    rdn = RDN(C=6 , D=20, G=64 ,G0=64, scaling_factor=2, kernel_size=3, c_dims=img.shape[0], upscaling='ups', weights=None)
     print(rdn)
-
+    rdn.eval()
     new_img = rdn(img)
     print(new_img.shape)
     new_img = new_img.detach().numpy()
