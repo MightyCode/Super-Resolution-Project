@@ -25,7 +25,7 @@ from matplotlib import pyplot as plt
 
 
 if __name__ == '__main__':
-    img = Image.open('datasets/dataset/train/high_res/0.png')
+    img = Image.open('resources/pokemon_jpg/pokemon_jpg/1.jpg')
     plt.imshow(img)
     plt.show()
     img = torchvision.transforms.ToTensor()(img)
