@@ -39,7 +39,7 @@ if __name__ == '__main__':
     img = img.to(device)
 
     #model creation
-    rdn = RDN(C=6 , D=20, G=32 ,G0=32, scaling_factor=2, kernel_size=3, c_dims=img.shape[0], upscaling='ups', weights=None)
+    rdn = RDN(C=3 , D=10, G=64 ,G0=64, scaling_factor=2, kernel_size=3, c_dims=img.shape[0], upscaling='ups', weights=None)
     rdn.to(device)
     rdn.eval()
 
