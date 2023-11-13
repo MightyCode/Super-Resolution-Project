@@ -45,6 +45,7 @@ if __name__ == '__main__':
 
     #image processing
     new_img = rdn(img)
+    new_img = new_img.squeeze(0)
     new_img = new_img.to('cpu').detach().numpy()
     new_img = np.transpose(new_img, (1, 2, 0))
     plt.imshow(new_img)

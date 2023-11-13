@@ -99,7 +99,7 @@ class Experiment():
             set and the validation set. (default: False)
     """
 
-    def __init__(self, net, train_set, val_set, optimizer, stats_manager, device,
+    def __init__(self, net, train_set, val_set, optimizer, stats_manager, device, criterion,
                  output_dir=None, batch_size=16, perform_validation_during_training=False):
 
         # Define data loaders
@@ -111,6 +111,8 @@ class Experiment():
 
         # Initialize history
         history = []
+
+        self.criterion = criterion
 
         # Define checkpoint paths
         if output_dir is None:
@@ -142,8 +144,6 @@ class Experiment():
     def setting(self):
         """Returns the setting of the experiment."""
         return {'Net': self.net,
-                'TrainSet': self.train_set,
-                'ValSet': self.val_set,
                 'Optimizer': self.optimizer,
                 'StatsManager': self.stats_manager,
                 'BatchSize': self.batch_size,
@@ -221,10 +221,9 @@ class Experiment():
             i=0
             for x, d in self.train_loader:
                 x, d = x.to(self.device), d.to(self.device)
-                
                 self.optimizer.zero_grad()
                 y = self.net.forward(x)
-                loss = self.net.criterion(y, d)
+                loss = self.criterion(y, d)
                 loss.backward()
                 self.optimizer.step()
                 with torch.no_grad():
@@ -253,7 +252,7 @@ class Experiment():
             for x, d in self.val_loader:
                 x, d = x.to(self.device), d.to(self.device)
                 y = self.net.forward(x)
-                loss = self.net.criterion(y, d)
+                loss = self.criterion(y, d)
                 self.stats_manager.accumulate(loss.item(), x, y, d)
         self.net.train()
         return self.stats_manager.summarize()

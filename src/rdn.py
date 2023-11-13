@@ -106,6 +106,9 @@ class RDN(nn.Module):
             H_LR: output image, tensor of shape (N, C, scale*H, scale*W).
         """
         
+        if len(I_LR.shape) == 3:
+            I_LR = I_LR.unsqueeze(0)
+
         f_m1 = F.relu(self.F_m1(I_LR))
         f_0 = F.relu(self.F_0(f_m1))
         f = f_0
@@ -114,10 +117,10 @@ class RDN(nn.Module):
             f_d_c = f_tmp
             for c in range(0, self.C):
                 f_d_c_tmp = F.relu(self.F[d][c](f_d_c))
-                f_d_c = torch.cat((f_d_c, f_d_c_tmp), dim=0)
+                f_d_c = torch.cat((f_d_c, f_d_c_tmp), dim=1)
             f_d_LF = F.relu(self.F[d][self.C](f_d_c))
             f_tmp = f_d_LF + f_tmp
-            f = torch.cat((f, f_tmp), dim=0)
+            f = torch.cat((f, f_tmp), dim=1)
         
         f_GF = self.GFF1(f)
         f_GF = self.GFF2(f_GF)
@@ -126,8 +129,6 @@ class RDN(nn.Module):
         
         f_U = self.FU(f_DF)
         if self.upscaling == 'ups':
-            f_U = f_U.unsqueeze(1)
             f_U = F.interpolate(f_U, scale_factor=self.scale, mode='bilinear', align_corners=False)
-            f_U = f_U.squeeze(1)
         I_HR = torch.sigmoid(self.F_last(f_U))
         return I_HR
