@@ -25,14 +25,21 @@ from matplotlib import pyplot as plt
 
 
 if __name__ == '__main__':
+    import sys
     device = None
     # import torch_directml #WINDOWS users
     # device = torch_directml.device()
     if not device:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+            torch.cuda.empty_cache()
+        else:
+            device = torch.device('cpu')
+
+    path = 'datasets/dataset/train/low_res/0.png' if len(sys.argv) < 2 else sys.argv[1]
 
     #image loading
-    img = Image.open('datasets/dataset/train/low_res/0.png')
+    img = Image.open(path)
     plt.imshow(img)
     plt.show()
     img = torchvision.transforms.ToTensor()(img)
