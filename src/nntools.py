@@ -233,9 +233,9 @@ class Experiment():
                 self.history.append(
                     (self.stats_manager.summarize(), self.evaluate()))
             if self.perform_validation_during_training:
-                print("Epoch {} (Time: {:.2f}s) Loss: {:.2f} psnr: {}".format(self.epoch, time.time() - s, self.history[-1][0]['loss'], self.history[-1][1]['psnr']))
+                print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {}".format(self.epoch, time.time() - s, self.history[-1][0]['loss'], self.history[-1][1]['psnr']))
             else:
-                 print("Epoch {} (Time: {:.2f}s) Loss: {:.2f} psnr: {}".format(self.epoch, time.time() - s, self.history[-1]['loss'], self.history[-1]['psnr']))
+                 print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {}".format(self.epoch, time.time() - s, self.history[-1]['loss'], self.history[-1]['psnr']))
             i=i+1
             self.save()
             if plot is not None:
