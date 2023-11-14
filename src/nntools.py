@@ -104,10 +104,10 @@ class Experiment():
 
         # Define data loaders
         train_loader = td.DataLoader(train_set, batch_size=batch_size, shuffle=True,
-                                     drop_last=True, pin_memory=True)
+                                     drop_last=True)
 
         val_loader = td.DataLoader(val_set, batch_size=batch_size, shuffle=False,
-                                   drop_last=True, pin_memory=True)
+                                   drop_last=True)
 
         # Initialize history
         history = []
@@ -220,7 +220,6 @@ class Experiment():
             self.stats_manager.init()
             i=0
             for x, d in self.train_loader:
-                x, d = x.to(self.device), d.to(self.device)
                 self.optimizer.zero_grad()
                 y = self.net.forward(x)
                 loss = self.criterion(y, d)
@@ -250,7 +249,6 @@ class Experiment():
         self.net.eval()
         with torch.no_grad():
             for x, d in self.val_loader:
-                x, d = x.to(self.device), d.to(self.device)
                 y = self.net.forward(x)
                 loss = self.criterion(y, d)
                 self.stats_manager.accumulate(loss.item(), x, y, d)
