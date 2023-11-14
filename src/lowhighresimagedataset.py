@@ -11,9 +11,9 @@ import torch.nn.functional as F
 import torchvision.models as models
 from torch.utils.data import Dataset
 
-base_dir = '../datasets/dataset'
+base_dir = '../resources/carla'
 train_dir = os.path.join(base_dir, 'train')
-valid_dir = os.path.join(base_dir, 'val')
+valid_dir = os.path.join(base_dir, 'valid')
 
 # Directories with training/validation low_res/high_res pictures
 train_low_res_dir = os.path.join(train_dir, 'low_res')
