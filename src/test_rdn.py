@@ -29,8 +29,11 @@ if __name__ == '__main__':
     device = None
     # import torch_directml #WINDOWS users
     # device = torch_directml.device()
+
+    forceUseCpu = True
+
     if not device:
-        if torch.cuda.is_available():
+        if torch.cuda.is_available() and not forceUseCpu:
             device = torch.device('cuda')
             torch.cuda.empty_cache()
         else:
