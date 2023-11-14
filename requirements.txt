@@ -10,3 +10,4 @@ ipykernel
 tqdm
 scikit-image
 gdown
+scikit-learn
