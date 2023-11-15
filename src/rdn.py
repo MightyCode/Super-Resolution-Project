@@ -57,8 +57,10 @@ class RDN(nn.Module):
 
         self.FU = self._make_upsampling()
 
-        self.F_last = nn.Conv2d(in_channels=self.c_dims * self.scale ** 2, out_channels=self.c_dims, kernel_size=self.kernel_size, padding='same')
-        
+        if self.upscaling == 'ups':
+            self.F_last = nn.Conv2d(in_channels=self.c_dims * self.scale ** 2, out_channels=self.c_dims, kernel_size=self.kernel_size, padding='same')
+        elif self.upscaling == 'shuffle':
+            self.F_last = nn.Conv2d(in_channels=self.c_dims, out_channels=self.c_dims, kernel_size=self.kernel_size, padding='same')
         
 
     def _make_RDBs(self):
@@ -74,16 +76,16 @@ class RDN(nn.Module):
 
     def _make_upsampling(self):
         """return an upsampling function that multiply per scale the height and the weight of the image."""
-        # return F.interpolate #maybe add conv to learn the upsampling
         if self.upscaling == 'shuffle':
-            UPN1 = nn.Conv2d(in_channels=self.G0, out_channels=64, kernel_size=5, padding='same')
-            UPN1_Relu = nn.ReLU()
-            UPN2 = nn.Conv2d(in_channels=64, out_channels=32, kernel_size=3, padding='same')
-            UPN2_Relu = nn.ReLU()
-            UPN3 = nn.Conv2d(in_channels=32, out_channels=self.c_dims * self.scale ** 2, kernel_size=3, padding='same')
-            #TODO: add shuffle
-            pass
-            return nn.Sequential(UPN1, UPN1_Relu, UPN2, UPN2_Relu, UPN3)
+            return nn.Sequential(
+                nn.Conv2d(in_channels=self.G0, out_channels=64, kernel_size=5, padding='same'),
+                nn.ReLU(),
+                nn.Conv2d(in_channels=64, out_channels=32, kernel_size=3, padding='same'),
+                nn.ReLU(),
+                nn.Conv2d(in_channels=32, out_channels=self.c_dims * self.scale ** 2, kernel_size=3, padding='same'),
+                nn.PixelShuffle(self.scale)
+            )
+        
         elif self.upscaling == 'ups':
             return nn.Sequential(
                 nn.Conv2d(in_channels=self.G0, out_channels=64, kernel_size=5, padding='same'),

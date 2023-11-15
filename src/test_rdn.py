@@ -39,7 +39,7 @@ if __name__ == '__main__':
         else:
             device = torch.device('cpu')
 
-    path = 'datasets/dataset/train/low_res/0.png' if len(sys.argv) < 2 else sys.argv[1]
+    path = 'resources/carla/train/low_res/00001.png' if len(sys.argv) < 2 else sys.argv[1]
 
     #image loading
     img = Image.open(path)
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     img = img.to(device)
 
     #model creation
-    rdn = RDN(C=3 , D=10, G=64 ,G0=64, scaling_factor=2, kernel_size=3, c_dims=img.shape[0], upscaling='ups', weights=None)
+    rdn = RDN(C=3 , D=10, G=64 ,G0=64, scaling_factor=2, kernel_size=3, c_dims=img.shape[0], upscaling='shuffle', weights=None)
     rdn.to(device)
     rdn.eval()
 
