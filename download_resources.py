@@ -5,22 +5,31 @@ import zipfile
 from sklearn.model_selection import train_test_split
 import json
 from torch.utils.data import Dataset
+from cv2 import imread, imwrite, resize
 
 class CarlaDataset(Dataset):
-    def __init__(self, res:str = "1920x1080", download:bool = False) -> None:
+    def __init__(self, high_res:str = "1920x1080", low_res:str = "1280x720", split:str = "train", download:bool = False):
         super().__init__()
+        self.split = split
         self.resources_folder: str = "resources"
-        self.carla_folder: str = os.path.join(self.resources_folder, "carla")  # Create 'carla' folder within 'resources'
-        os.makedirs(self.carla_folder, exist_ok=True)
+        self.high_res = high_res
+        self.low_res = low_res
         with open("links.json") as f:
             data = json.load(f)
             try:
-                self.dataset_link = data["datasets"][res]
+                self.dataset_link = data["datasets"][high_res]
             except:
-                raise KeyError(f"{res} dataset link not found")
+                raise KeyError(f"{high_res} dataset link not found")
 
-        if download:
-            self.get_dataset(self.dataset_link, res)
+        if not download and not self.check_download():
+            raise FileNotFoundError("You didn't download the dataset, you can do it by specifying download=True")
+        else:
+            self.download_dataset(self.dataset_link, self.high_res)
+            self.resize_dataset()
+            # self.split_dataset()
+
+    def check_download(self) -> bool:
+        return os.path.exists(os.path.join(self.resources_folder, self.high_res))
 
     def down_drive(self, url: str, dest: str):
         gdown.download(url, dest, quiet=False)
@@ -29,17 +38,29 @@ class CarlaDataset(Dataset):
         with zipfile.ZipFile(file_path, 'r') as zip_ref:
             zip_ref.extractall(extract_path)
 
-    def get_dataset(self, url: str, dest: str):
-        folder_path = os.path.join(self.carla_folder, dest)  # Save datasets directly into 'carla' folder
+    def download_dataset(self, url: str, dest: str):
+        folder_path = os.path.join(self.resources_folder, dest)
         zip_path = folder_path + ".zip"
         if os.path.exists(folder_path):
             print(f"Dataset already downloaded at {folder_path}")
             return
-        self.down_drive(url=url, dest=zip_path)
+        gdown.download(url, zip_path, quiet=False)
         print(f"Extracting to {folder_path} ...")
-        self.unzip_file(zip_path, self.carla_folder)
+        self.unzip_file(zip_path, folder_path)
         os.remove(zip_path)
         print("Done!")
+
+    def resize_dataset(self, source:str, dest:str):
+        source_folder = os.path.join(self.resources_folder, source)
+        dest_folder = os.path.join(self.resources_folder, dest)
+        destx, desty = dest.split("x")
+        print("Resizing images ...")
+        for img in os.listdir(source_folder):
+            source_img = imread(os.path.join(source_folder, img))
+            dest_img = resize(source_img,(destx, desty))
+            imwrite(os.path.join(dest_folder, img), dest_img)
+        print("Done!")
+
 
     def remove_folder(self, folder_path: str):
         try:
@@ -97,6 +118,6 @@ class CarlaDataset(Dataset):
             os.rename(source_path, destination_path)
 
 if __name__ == "__main__":
-    split = 0.8 if len(sys.argv) < 2 else float(sys.argv[1])
-    test = CarlaDataset("128x128", download=False)
-    test.organize_dataset(split)
+    # split = 0.8 if len(sys.argv) < 2 else float(sys.argv[1])
+    test = CarlaDataset("256x256", "128x128", download=True)
+    # test.organize_dataset(split)
