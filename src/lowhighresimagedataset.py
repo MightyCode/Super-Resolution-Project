@@ -22,7 +22,7 @@ valid_low_res_dir = os.path.join(valid_dir, 'low_res')
 valid_high_res_dir = os.path.join(valid_dir, 'high_res')
 
 class LowAndHighResImageDataset(Dataset):
-    def __init__(self, transform, train, onDevice='cpu'):
+    def __init__(self, transform, train):
         self.transform = transform
         self.train = train
         self.images = []
@@ -38,7 +38,6 @@ class LowAndHighResImageDataset(Dataset):
         self.low_res_images.sort()
         self.high_res_images.sort()
         assert len(self.low_res_images) == len(self.high_res_images)
-        self.device = onDevice
 
     def __len__(self):
         return len(self.low_res_images)
@@ -49,8 +48,8 @@ class LowAndHighResImageDataset(Dataset):
         image_low_res = Image.open(img_low_res_path).convert("RGB")
         image_high_res = Image.open(img_high_res_path).convert("RGB")
         if self.transform:
-            image_low_res = self.transform(image_low_res).to(self.device)
-            image_high_res = self.transform(image_high_res).to(self.device)
+            image_low_res = self.transform(image_low_res)
+            image_high_res = self.transform(image_high_res)
 
         return image_low_res, image_high_res
     
@@ -65,7 +64,7 @@ class LowAndHighResImageDataset(Dataset):
 
 
 class LowAndHighRes16x16ImageDataset(Dataset):
-    def __init__(self, train, transform=transforms.ToTensor(), onDevice='cpu', scale_factor=2):
+    def __init__(self, train, transform=transforms.ToTensor(), scale_factor=2):
         self.transform = transform
         self.train = train
         self.scale_factor = scale_factor
@@ -85,7 +84,6 @@ class LowAndHighRes16x16ImageDataset(Dataset):
         self.h = I.height // 16
         self.w = I.width // 16
         assert len(self.low_res_images) == len(self.high_res_images)
-        self.device = onDevice
 
     def __len__(self):
         return len(self.low_res_images) * self.h * self.w
@@ -99,8 +97,8 @@ class LowAndHighRes16x16ImageDataset(Dataset):
         image_low_res = Image.open(img_low_res_path).convert("RGB")
         image_high_res = Image.open(img_high_res_path).convert("RGB")
 
-        image_low_res = self.transform(image_low_res).to(self.device)
-        image_high_res = self.transform(image_high_res).to(self.device)
+        image_low_res = self.transform(image_low_res)
+        image_high_res = self.transform(image_high_res)
 
         #take a 16x16 patch corresponding to idx for the low res image and the 32x32 patch for the high res image
         i = idx % (h * w)
