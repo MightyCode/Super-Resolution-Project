@@ -1,7 +1,4 @@
 numpy
-waifu2x
-tensorflow
-tensorflow_hub
 opencv-python
 matplotlib
 torch
