@@ -92,6 +92,8 @@ class RDN(nn.Module):
                 nn.ReLU(),
                 nn.Conv2d(in_channels=64, out_channels=32, kernel_size=3, padding='same'),
                 nn.ReLU(),
+                nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, padding='same'),
+                nn.ReLU(),
                 nn.Conv2d(in_channels=32, out_channels=self.c_dims * self.scale ** 2, kernel_size=3, padding='same')
             )
         else:
@@ -129,8 +131,11 @@ class RDN(nn.Module):
         
         f_DF = f_m1 + f_GF
         
-        f_U = self.FU(f_DF)
         if self.upscaling == 'ups':
-            f_U = F.interpolate(f_U, scale_factor=self.scale, mode='bilinear', align_corners=False)
+            f_U = F.interpolate(f_DF, scale_factor=self.scale, mode='bilinear', align_corners=False)
+            f_U = self.FU(f_U)
+        elif self.upscaling == 'shuffle':
+            f_U = self.FU(f_DF)
+        
         I_HR = torch.sigmoid(self.F_last(f_U))
         return I_HR
