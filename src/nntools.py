@@ -115,26 +115,26 @@ class Experiment():
         self.criterion = criterion
 
         # Define checkpoint paths
-        if output_dir is None:
-            output_dir = 'experiment_{}'.format(time.time())
-        os.makedirs(output_dir, exist_ok=True)
-        checkpoint_path = os.path.join(output_dir, "checkpoint.pth.tar")
-        config_path = os.path.join(output_dir, "config.txt")
+        if output_dir is not None:
+            os.makedirs(output_dir, exist_ok=True)
+            checkpoint_path = os.path.join(output_dir, "checkpoint.pth.tar")
+            config_path = os.path.join(output_dir, "config.txt")
 
         # Transfer all local arguments/variables into attributes
         locs = {k: v for k, v in locals().items() if k != 'self'}
         self.__dict__.update(locs)
 
-        # Load checkpoint and check compatibility
-        if os.path.isfile(config_path):
-            with open(config_path, 'r') as f:
-                if f.read()[:-1] != repr(self):
-                    raise ValueError(
-                        "Cannot create this experiment: "
-                        "I found a checkpoint conflicting with the current setting.")
-            self.load()
-        else:
-            self.save()
+        if output_dir is not None:
+            # Load checkpoint and check compatibility
+            if os.path.isfile(config_path):
+                with open(config_path, 'r') as f:
+                    if f.read()[:-1] != repr(self):
+                        raise ValueError(
+                            "Cannot create this experiment: "
+                            "I found a checkpoint conflicting with the current setting.")
+                self.load()
+            else:
+                self.save()
 
     @property
     def epoch(self):
@@ -181,9 +181,10 @@ class Experiment():
 
     def save(self):
         """Saves the experiment on disk, i.e, create/update the last checkpoint."""
-        torch.save(self.state_dict(), self.checkpoint_path)
-        with open(self.config_path, 'w') as f:
-            print(self, file=f)
+        if self.output_dir is not None:
+            torch.save(self.state_dict(), self.checkpoint_path)
+            with open(self.config_path, 'w') as f:
+                print(self, file=f)
 
     def load(self):
         """Loads the experiment from the last checkpoint saved on disk."""
