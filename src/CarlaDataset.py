@@ -154,13 +154,14 @@ class CarlaDataset(Dataset):
 
 
 
-class CarlaDataset16x16(CarlaDataset):
-    def __init__(self, high_res:str = "1920x1080", low_res:str = "1280x720", split:str = "train", transforms = None, download:bool = False):
+class CarlaDatasetPatch(CarlaDataset):
+    def __init__(self, high_res:str = "1920x1080", low_res:str = "1280x720", split:str = "train", transforms = None, download:bool = False, patch_size=16):
         super().__init__(high_res, low_res, split, transforms, download)
+        self.patch_size = patch_size
         #open the first image of the train low res set to get the size of the images
         I = cv2.imread(os.path.join(self.resources_folder, self.train, self.low_res, os.listdir(os.path.join(self.resources_folder, self.train, self.low_res))[0]))
-        self.h = I.shape[0] // 16
-        self.w = I.shape[1] // 16
+        self.h = I.shape[0] // self.patch_size
+        self.w = I.shape[1] // self.patch_size
         self.scale_factor = int(self.high_res.split("x")[0]) // int(self.low_res.split("x")[0])
     
     def __getitem__(self, index) -> Any:
@@ -185,8 +186,8 @@ class CarlaDataset16x16(CarlaDataset):
         line = i // w
         col = i % h
         sf = self.scale_factor
-        image_low_res = image_low_res[:, 16*line:16*(line+1), 16*col:16*(col+1)]
-        image_high_res = image_high_res[:, 16*sf*line:16*sf*(line+1), 16*sf*col:16*sf*(col+1)]
+        image_low_res = image_low_res[:, self.patch_size * line: self.patch_size * (line + 1), self.patch_size * col : self.patch_size * (col+1)]
+        image_high_res = image_high_res[:, self.patch_size * sf * line: self.patch_size * sf * (line + 1), self.patch_size * sf * col : self.patch_size * sf * (col + 1)]
 
         return image_low_res, image_high_res
     
