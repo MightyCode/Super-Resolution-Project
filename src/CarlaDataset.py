@@ -5,6 +5,7 @@ import zipfile
 from sklearn.model_selection import train_test_split
 import json
 from torch.utils.data import Dataset
+from PIL import Image
 import cv2
 import numpy as np
 import math
@@ -54,6 +55,10 @@ class CarlaDataset(Dataset):
             except:
                 raise KeyError(f"{res} dataset link not found")
             
+    def open_image(self, path:str):
+        #return np.array(Image.open(path))[:, :, 0:3]
+        return cv2.imread(path)
+            
     def look_for_dataset(self) -> bool:
         return os.path.exists(os.path.join(self.resources_folder, self.train)) or os.path.exists(os.path.join(self.resources_folder, self.test))
 
@@ -82,8 +87,9 @@ class CarlaDataset(Dataset):
         os.mkdir(dest_folder)
         destx, desty = dest.split("x")
         print("Resizing images ...")
+
         for img in os.listdir(source_folder):
-            source_img = cv2.imread(os.path.join(source_folder, img))
+            source_img = cv2.imopen(os.path.join(source_folder, img))
             try:
                 dest_img = cv2.resize(source_img,(int(destx), int(desty)))
                 dest_img_path = os.path.join(dest_folder, img)
@@ -162,8 +168,9 @@ class CarlaDataset(Dataset):
     def __getitem__(self, index) -> Any:
         index = self.check_index(index)
 
-        high_res = cv2.imread(os.path.join(self.high_res_path, self.images[index]))
-        low_res = cv2.imread(os.path.join(self.low_res_path, self.images[index]))
+        # Open image without transparence
+        high_res = self.open_image(os.path.join(self.high_res_path, self.images[index]))
+        low_res = self.open_image(os.path.join(self.low_res_path, self.images[index]))
 
         if self.transforms is not None:
             high_res = self.transforms(high_res)
@@ -202,8 +209,8 @@ class CarlaDatasetPatch(CarlaDataset):
         super().__init__(high_res, low_res, split, transforms, download)
         self.patch_size = patch_size
         #open the first image of the train low res set to get the size of the images
-        I = cv2.imread(os.path.join(self.resources_folder, self.train, self.low_res,
-                                     os.listdir(os.path.join(self.resources_folder, self.train, self.low_res))[0]))
+        I = self.open_image(os.path.join(self.resources_folder, self.train, self.low_res,
+                                        os.listdir(os.path.join(self.resources_folder, self.train, self.low_res))[0]))  
         
         # If the image is not divisible by the patch size, we add a patch to the right and to the bottom
         self.h = math.ceil(I.shape[0] / self.patch_size)
@@ -217,14 +224,14 @@ class CarlaDatasetPatch(CarlaDataset):
         
         return super().__len__() * self.h * self.w
 
-    def __getitem__(self, index) -> Any:
-        index = self.check_index(index)
+    def __getitem__(self, index_patch) -> Any:
+        index_patch = self.check_index(index_patch)
         
-        image_index = index // (self.h * self.w)
-        part_on_image = index % (self.h * self.w)
+        image_index = index_patch // (self.h * self.w)
+        part_on_image = index_patch % (self.h * self.w)
 
-        image_low_res = cv2.imread(os.path.join(self.low_res_path, self.images[image_index]))
-        image_high_res = cv2.imread(os.path.join(self.high_res_path, self.images[image_index]))
+        image_low_res = self.open_image(os.path.join(self.low_res_path, self.images[image_index]))
+        image_high_res = self.open_image(os.path.join(self.high_res_path, self.images[image_index]))
 
         if self.transforms is not None:
             image_low_res = self.transforms(image_low_res)
@@ -261,10 +268,10 @@ class CarlaDatasetPatch(CarlaDataset):
 
         return image_low_res, image_high_res
 
-    def get_all_patch_for_image(self, index):
-        image_index = index // (self.h * self.w)
-        image_low_res = cv2.imread(os.path.join(self.low_res_path, self.images[image_index]))
-        image_high_res = cv2.imread(os.path.join(self.high_res_path, self.images[image_index]))
+    def get_all_patch_for_image(self, index_patch):
+        image_index = index_patch // (self.h * self.w)
+        image_low_res = self.open_image(os.path.join(self.low_res_path, self.images[image_index]))
+        image_high_res = self.open_image(os.path.join(self.high_res_path, self.images[image_index]))
 
         if self.transforms is not None:
             image_low_res = self.transforms(image_low_res)
@@ -301,16 +308,22 @@ class CarlaDatasetPatch(CarlaDataset):
                 patches_high_res[i * self.w + j] = image_high_res[:, start_high_x: end_high_x, start_high_y : end_high_y]
 
         return patches_low_res, patches_high_res
+    
+    def get_index_for_image(self, index_patch):
+        index_patch = index_patch // (self.h * self.w)
+
+        if index_patch < 0:
+            index_patch = len(self.images) + index_patch
+
+        return index_patch
+
+    def get_index_start_patch(self, index_patch):
+        index_patch = index_patch // (self.h * self.w)
+
+        return index_patch * (self.h * self.w)
 
     def get_full_image(self, index):
-        return super().__getitem__(self.get_index_for_image(index))
-
-    def get_index_for_image(self, index):
-        index = index // (self.h * self.w)
-
-        if index < 0:
-            index = len(self.images) + index
-        return index
+        return super().__getitem__(index)
     
     def get_info(self):
         # Display the sizes of the dataset
