@@ -6,9 +6,16 @@ from sklearn.model_selection import train_test_split
 import json
 from torch.utils.data import Dataset
 import cv2
+import numpy as np
+import math
 
 class CarlaDataset(Dataset):
-    def __init__(self, high_res:str = "1920x1080", low_res:str = "1280x720", split:str = "train", transforms = None, download:bool = False):
+    def __init__(self, 
+                 high_res:str = "1920x1080", 
+                 low_res:str = "1280x720", 
+                 split:str = "train", 
+                 transforms = None, 
+                 download:bool = False):
         super().__init__()
         self.split = split
         self.resources_folder: str = "resources"
@@ -19,13 +26,21 @@ class CarlaDataset(Dataset):
         self.transforms = transforms
         self.dataset_link = self.get_link(high_res)
 
+        self.dir_path = os.path.join(self.resources_folder, self.split)
+        self.high_res_path = os.path.join(self.dir_path, self.high_res)
+        self.low_res_path = os.path.join(self.dir_path, self.low_res)
+        self.images = os.listdir(self.high_res_path)
+
+        self.chosen_indices = None
+
         if self.look_for_dataset():
             print("Dataset already present")
             return
+
         if download:
             self.download_dataset(self.dataset_link, self.high_res)
     
-        self.resize_dataset(self.high_res, self.low_res)
+        self.resize_dataset()
         self.split_dataset()
 
 
@@ -38,7 +53,8 @@ class CarlaDataset(Dataset):
                 raise KeyError(f"{res} dataset link not found")
             
     def look_for_dataset(self) -> bool:
-        return os.path.exists(os.path.join(self.resources_folder, self.train)) or os.path.exists(os.path.join(self.resources_folder, self.test))
+        return os.path.exists(os.path.join(self.resources_folder, self.train)) \
+            or os.path.exists(os.path.join(self.resources_folder, self.test))
 
     def unzip_file(self, file_path: str, extract_path: str):
         with zipfile.ZipFile(file_path, 'r') as zip_ref:
@@ -82,6 +98,7 @@ class CarlaDataset(Dataset):
         dir_train_low = os.path.join(self.resources_folder, self.train, self.low_res)
         dir_test_high = os.path.join(self.resources_folder, self.test, self.high_res)
         dir_test_low = os.path.join(self.resources_folder, self.test, self.low_res)
+
         if os.path.exists(dir_train_high):
             print("Dataset already splitted")
             return
@@ -111,6 +128,16 @@ class CarlaDataset(Dataset):
             dest_img = os.path.join(dest, img)
             os.rename(source_img, dest_img)
 
+    def limit_dataset(self, limit:int) -> None:
+        if limit > len(self):
+            raise ValueError(f"Limit must be less than {len(self)}")
+        
+        self.chosen_indices = np.random.choice(len(self), limit, replace=False)
+
+
+    def reset_dataset_limit(self) -> None:
+        self.chosen_indices = None
+
     def _remove_folder(self, folder_path: str) -> None:
         try:
             os.rmdir(folder_path)
@@ -118,16 +145,25 @@ class CarlaDataset(Dataset):
         except OSError as e:
             print(f"Error: {e}")
 
+    def check_index(self, index):
+        if index < 0:
+            index = len(self) + index
+
+        if self.chosen_indices is not None:
+            index = self.chosen_indices[index]
+
+        return index
+
     def __len__(self):
-        return len(os.listdir(os.path.join(self.resources_folder, self.split, self.high_res)))
+        return len(self.images) if self.chosen_indices is None else len(self.chosen_indices)
+
 
     def __getitem__(self, index) -> Any:
-        dir_path = os.path.join(self.resources_folder, self.split)
-        high_res_path = os.path.join(dir_path, self.high_res)
-        low_res_path = os.path.join(dir_path, self.low_res)
-        images = os.listdir(high_res_path)
-        high_res = cv2.imread(os.path.join(high_res_path, images[index]))
-        low_res = cv2.imread(os.path.join(low_res_path, images[index]))
+        index = self.check_index(index)
+
+        high_res = cv2.imread(os.path.join(self.high_res_path, self.images[index]))
+        low_res = cv2.imread(os.path.join(self.low_res_path, self.images[index]))
+
         if self.transforms is not None:
             high_res = self.transforms(high_res)
             low_res = self.transforms(low_res)
@@ -155,43 +191,126 @@ class CarlaDataset(Dataset):
 
 
 class CarlaDatasetPatch(CarlaDataset):
-    def __init__(self, high_res:str = "1920x1080", low_res:str = "1280x720", split:str = "train", transforms = None, download:bool = False, patch_size=16):
+    def __init__(self, 
+                 high_res:str = "1920x1080", 
+                 low_res:str = "1280x720", 
+                 split:str = "train", 
+                 transforms = None, 
+                 download:bool = False, 
+                 patch_size=16):
         super().__init__(high_res, low_res, split, transforms, download)
         self.patch_size = patch_size
         #open the first image of the train low res set to get the size of the images
-        I = cv2.imread(os.path.join(self.resources_folder, self.train, self.low_res, os.listdir(os.path.join(self.resources_folder, self.train, self.low_res))[0]))
-        self.h = I.shape[0] // self.patch_size
-        self.w = I.shape[1] // self.patch_size
+        I = cv2.imread(os.path.join(self.resources_folder, self.train, self.low_res,
+                                     os.listdir(os.path.join(self.resources_folder, self.train, self.low_res))[0]))
+        
+        # If the image is not divisible by the patch size, we add a patch to the right and to the bottom
+        self.h = math.ceil(I.shape[0] / self.patch_size)
+        self.w = math.ceil(I.shape[1] / self.patch_size)
+
         self.scale_factor = int(self.high_res.split("x")[0]) // int(self.low_res.split("x")[0])
     
+    def __len__(self):
+        if self.chosen_indices is not None:
+            return len(self.chosen_indices)
+        
+        return super().__len__() * self.h * self.w
+
     def __getitem__(self, index) -> Any:
-        h = self.h
-        w = self.w
-        index = index // (h * w)
+        index = self.check_index(index)
+        
+        image_index = index // (self.h * self.w)
+        part_on_image = index % (self.h * self.w)
 
-        dir_path = os.path.join(self.resources_folder, self.split)
-        high_res_path = os.path.join(dir_path, self.high_res)
-        low_res_path = os.path.join(dir_path, self.low_res)
-        images = os.listdir(high_res_path)
-
-        image_low_res = cv2.imread(os.path.join(low_res_path, images[index]))
-        image_high_res = cv2.imread(os.path.join(high_res_path, images[index]))
+        image_low_res = cv2.imread(os.path.join(self.low_res_path, self.images[image_index]))
+        image_high_res = cv2.imread(os.path.join(self.high_res_path, self.images[image_index]))
 
         if self.transforms is not None:
             image_low_res = self.transforms(image_low_res)
             image_high_res = self.transforms(image_high_res)
 
         #take a 16x16 patch corresponding to index for the low res image and the 32x32 patch for the high res image
-        i = index % (h * w)
-        line = i // w
-        col = i % h
+        line = part_on_image % self.h
+        col = part_on_image // self.h
         sf = self.scale_factor
-        image_low_res = image_low_res[:, self.patch_size * line: self.patch_size * (line + 1), self.patch_size * col : self.patch_size * (col+1)]
-        image_high_res = image_high_res[:, self.patch_size * sf * line: self.patch_size * sf * (line + 1), self.patch_size * sf * col : self.patch_size * sf * (col + 1)]
+
+        start_low_x = self.patch_size * line
+        start_low_y = self.patch_size * col
+
+        end_low_x = start_low_x + self.patch_size
+        end_low_y = start_low_y + self.patch_size
+
+        if end_low_x > image_low_res.shape[1]:
+            end_low_x = image_low_res.shape[1]
+            start_low_x = end_low_x - self.patch_size
+
+        if end_low_y > image_low_res.shape[2]:
+            end_low_y = image_low_res.shape[2]
+            start_low_y = end_low_y - self.patch_size
+
+
+        start_high_x = start_low_x * sf
+        start_high_y = start_low_y * sf
+
+        end_high_x = end_low_x * sf
+        end_high_y = end_low_y * sf
+
+        image_low_res = image_low_res[:, start_low_x: end_low_x, start_low_y : end_low_y]
+        image_high_res = image_high_res[:, start_high_x: end_high_x, start_high_y : end_high_y]
 
         return image_low_res, image_high_res
-    
 
+    def get_all_patch_for_image(self, index):
+        image_index = index // (self.h * self.w)
+        image_low_res = cv2.imread(os.path.join(self.low_res_path, self.images[image_index]))
+        image_high_res = cv2.imread(os.path.join(self.high_res_path, self.images[image_index]))
+
+        if self.transforms is not None:
+            image_low_res = self.transforms(image_low_res)
+            image_high_res = self.transforms(image_high_res)
+
+        patches_low_res = np.zeros((self.h * self.w, 3, self.patch_size, self.patch_size))
+        patches_high_res = np.zeros((self.h * self.w, 3, self.patch_size * self.scale_factor, self.patch_size * self.scale_factor))
+
+        for i in range(self.h):
+            for j in range(self.w):
+                sf = self.scale_factor
+                start_low_x = self.patch_size * i
+                start_low_y = self.patch_size * j
+
+                end_low_x = start_low_x + self.patch_size
+                end_low_y = start_low_y + self.patch_size
+
+                if end_low_x > image_low_res.shape[1]:
+                    end_low_x = image_low_res.shape[1]
+                    start_low_x = end_low_x - self.patch_size
+
+                if end_low_y > image_low_res.shape[2]:
+                    end_low_y = image_low_res.shape[2]
+                    start_low_y = end_low_y - self.patch_size
+
+
+                start_high_x = start_low_x * sf
+                start_high_y = start_low_y * sf
+
+                end_high_x = end_low_x * sf
+                end_high_y = end_low_y * sf
+
+                patches_low_res[i * self.w + j] = image_low_res[:, start_low_x: end_low_x, start_low_y : end_low_y]
+                patches_high_res[i * self.w + j] = image_high_res[:, start_high_x: end_high_x, start_high_y : end_high_y]
+
+        return patches_low_res, patches_high_res
+
+    def get_full_image(self, index):
+        return super().__getitem__(self.get_index_for_image(index))
+
+    def get_index_for_image(self, index):
+        index = index // (self.h * self.w)
+
+        if index < 0:
+            index = len(self.images) + index
+        return index
+    
     def get_info(self):
         # Display the sizes of the dataset
         dir_train_high = os.path.join(self.resources_folder, self.train, self.high_res)
@@ -208,23 +327,38 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import torchvision
     import numpy as np
+    
     # CarlaDataset.clean_dir("resources")
     test = CarlaDataset("1920x1080", "960x540", transforms = torchvision.transforms.ToTensor(), download=False)
     test.get_info()
+    print(len(test))
     print(test[0][0].shape)
     print(test[0][1].shape)
-    test.get_info()
+    print(test[-1][0].shape)
+    print(test[-1][1].shape)
+    
+    """test.get_info()
     low_res, high_res = test[0]
     plt.imshow(low_res.permute(1, 2, 0))
     plt.show()
     plt.imshow(high_res.permute(1, 2, 0))
-    plt.show()
+    plt.show()"""
 
 
-    lr = CarlaDataset16x16(high_res="1920x1080", low_res="960x540", split="train", transforms = torchvision.transforms.ToTensor(), download=False)
+    lr = CarlaDatasetPatch(high_res="1920x1080", 
+                           low_res="960x540", 
+                           split="train", 
+                           transforms = torchvision.transforms.ToTensor(), 
+                           download=False)
+    
+    lr.get_info()
+    print(len(lr))
     print(lr[0][0].shape)
     print(lr[0][1].shape)
-    lr.get_info()
+    print(lr[-1][0].shape)
+    print(lr[-1][1].shape)
+
+    """lr.get_info()
     for i in range(3):
         low_res, high_res = lr[np.random.randint(len(lr))]
         #fig to show the 16x16 patch and the 32x32 patch
@@ -233,4 +367,4 @@ if __name__ == "__main__":
         plt.imshow(low_res.permute(1, 2, 0))
         fig.add_subplot(1, 2, 2)
         plt.imshow(high_res.permute(1, 2, 0))
-        plt.show()
+        plt.show()"""
