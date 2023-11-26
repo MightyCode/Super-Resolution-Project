@@ -29,20 +29,22 @@ class CarlaDataset(Dataset):
         self.dir_path = os.path.join(self.resources_folder, self.split)
         self.high_res_path = os.path.join(self.dir_path, self.high_res)
         self.low_res_path = os.path.join(self.dir_path, self.low_res)
-        self.images = os.listdir(self.high_res_path)
 
         self.chosen_indices = None
 
         if self.look_for_dataset():
+            self.images = os.listdir(self.high_res_path)
             print("Dataset already present")
+
             return
 
         if download:
             self.download_dataset(self.dataset_link, self.high_res)
     
-        self.resize_dataset()
+        self.resize_dataset(high_res, low_res)
         self.split_dataset()
-
+                
+        self.images = os.listdir(self.high_res_path)
 
     def get_link(self, res:str):
         with open("links.json") as f:
@@ -53,8 +55,7 @@ class CarlaDataset(Dataset):
                 raise KeyError(f"{res} dataset link not found")
             
     def look_for_dataset(self) -> bool:
-        return os.path.exists(os.path.join(self.resources_folder, self.train)) \
-            or os.path.exists(os.path.join(self.resources_folder, self.test))
+        return os.path.exists(os.path.join(self.resources_folder, self.train)) or os.path.exists(os.path.join(self.resources_folder, self.test))
 
     def unzip_file(self, file_path: str, extract_path: str):
         with zipfile.ZipFile(file_path, 'r') as zip_ref:

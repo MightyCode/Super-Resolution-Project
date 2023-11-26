@@ -214,12 +214,13 @@ class Experiment():
         self.stats_manager.init()
         start_epoch = self.epoch
         print("Start/Continue training from epoch {}".format(start_epoch))
+        
         if plot is not None:
             plot(self)
+
         for epoch in range(start_epoch, num_epochs):
             s = time.time()
             self.stats_manager.init()
-            i=0
             for x, d in self.train_loader:
                 torch.cuda.empty_cache()
                 x, d = x.to(self.device), d.to(self.device)
@@ -228,8 +229,10 @@ class Experiment():
                 loss = self.criterion(y, d)
                 loss.backward()
                 self.optimizer.step()
+
                 with torch.no_grad():
                     self.stats_manager.accumulate(loss.item(), x, y, d)
+                
             if not self.perform_validation_during_training:
                 self.history.append(self.stats_manager.summarize())
             else:
@@ -239,7 +242,6 @@ class Experiment():
                 print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {} ssim: {}".format(self.epoch, time.time() - s, self.history[-1][0]['loss'], self.history[-1][1]['psnr'], self.history[-1][1]['ssim']))
             else:
                  print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {} ssim: {}".format(self.epoch, time.time() - s, self.history[-1]['loss'], self.history[-1]['psnr'], self.history[-1]['ssim']))
-            i=i+1
             self.save()
             if plot is not None:
                 plot(self)
