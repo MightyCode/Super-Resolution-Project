@@ -102,15 +102,23 @@ class Experiment():
     def __init__(self, net, train_set, val_set, optimizer, stats_manager, device, criterion,
                  output_dir=None, batch_size=16, perform_validation_during_training=False):
 
+        self.net = net
+        self.optimizer = optimizer
+        self.stats_manager = stats_manager
+        self.device = device
+        self.perform_validation_during_training = perform_validation_during_training
+
+        self.batch_size = batch_size
+
         # Define data loaders
-        train_loader = td.DataLoader(train_set, batch_size=batch_size, shuffle=True,
+        self.train_loader = td.DataLoader(train_set, batch_size=batch_size, shuffle=True,
                                      drop_last=True)
 
-        val_loader = td.DataLoader(val_set, batch_size=batch_size, shuffle=False,
+        self.val_loader = td.DataLoader(val_set, batch_size=batch_size, shuffle=False,
                                    drop_last=True)
 
         # Initialize history
-        history = []
+        self.history = []
 
         self.criterion = criterion
 
