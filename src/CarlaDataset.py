@@ -218,6 +218,9 @@ class CarlaDatasetPatch(CarlaDataset):
 
         self.scale_factor = int(self.high_res.split("x")[0]) // int(self.low_res.split("x")[0])
     
+    def get_number_patch_per_image(self):
+        return self.h * self.w
+
     def __len__(self):
         if self.chosen_indices is not None:
             return len(self.chosen_indices)
