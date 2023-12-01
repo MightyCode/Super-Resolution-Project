@@ -91,7 +91,7 @@ class CarlaDataset(Dataset):
         print("Resizing images ...")
 
         for img in os.listdir(source_folder):
-            source_img = cv2.imopen(os.path.join(source_folder, img))
+            source_img = cv2.imread(os.path.join(source_folder, img))
             try:
                 dest_img = cv2.resize(source_img,(int(destx), int(desty)))
                 dest_img_path = os.path.join(dest_folder, img)
@@ -244,8 +244,6 @@ class CarlaDatasetPatch(CarlaDataset):
 
         patch_low_res = PatchImageTool.get_patch_from_image_index(image_low_res, part_on_image, self.patch_size, w=self.w, h=self.h)
         patch_high_res = PatchImageTool.get_patch_from_image_index(image_high_res, part_on_image, self.patch_size * self.scale_factor, w=self.w, h=self.h)
-
-        print(patch_low_res.shape, patch_high_res.shape)
 
         return patch_low_res, patch_high_res
 

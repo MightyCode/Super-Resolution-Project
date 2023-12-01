@@ -17,7 +17,9 @@ class UpscaleNN(nn.Module):
 			nn.ConvTranspose2d(27, 9, 2, 2),
 			self.DoubleConv2d(9, 9),
 		)
+
 		self.final = nn.Conv2d(9, 3, 1)
+
 	
 	def forward(self, X):
 		if len(X.shape) == 3:
@@ -27,7 +29,11 @@ class UpscaleNN(nn.Module):
 			_, _, h, w = X.shape
 			
 		X_2 = Resize((h*2, w*2))(X)
-		return self.final(self.decoder(self.encoder(X_2))) + X_2
+
+		value = self.final(self.decoder(self.encoder(X_2))) + X_2
+
+		# Clamp value beteween 0 and 1
+		return value.clamp(0, 1)
 		
 	def make_encoder(self, depth = 3, in_c = 3, mult = 3):
 		seq = []
