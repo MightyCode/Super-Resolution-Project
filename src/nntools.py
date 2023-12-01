@@ -107,6 +107,16 @@ class Experiment():
         self.train_set = train_set
         self.val_set = val_set
 
+        if self.train_set is not None:
+            self.train_set_len = train_set.__len__()
+        else:
+            self.train_set_len = 0
+
+        if self.train_set is not None:
+            self.val_set_len = val_set.__len__()
+        else:
+            self.val_set_len = 0
+
         self.nb_param = sum(p.numel() for p in net.parameters() if p.requires_grad)
 
         # initialization for config.txt
@@ -167,8 +177,8 @@ class Experiment():
                 'Device' : self.device,
                 'Parameters': self.nb_param,
                 'BatchSize': self.batch_size,
-                'Training size': self.train_set.__len__(),
-                'Validation size': self.val_set.__len__(),
+                'Training size': self.train_set_len,
+                'Validation size': self.val_set_len,
                 'Epochs': self.num_epochs,
                 'Training start': self.training_start_time,
                 'Training time': f'{self.current_training_time} s'}
