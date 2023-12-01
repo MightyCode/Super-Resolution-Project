@@ -8,6 +8,7 @@ import os
 import time
 import torch
 import torch.utils.data as td
+import datetime
 
 
 class StatsManager():
@@ -103,6 +104,16 @@ class Experiment():
                  output_dir=None, batch_size=16, perform_validation_during_training=False):
 
         self.net = net
+        self.train_set = train_set
+        self.val_set = val_set
+
+        self.nb_param = sum(p.numel() for p in net.parameters() if p.requires_grad)
+
+        # initialization for config.txt
+        self.num_epochs = None
+        self.current_training_time = None
+        self.training_start_time = None
+
         # Define data loaders
         if train_set is not None and batch_size is not None:
             self.train_loader = td.DataLoader(train_set, batch_size=batch_size, shuffle=True,
@@ -153,9 +164,14 @@ class Experiment():
         """Returns the setting of the experiment."""
         return {'Net': self.net,
                 'Optimizer': self.optimizer,
-                'StatsManager': self.stats_manager,
+                'Device' : self.device,
+                'Parameters': self.nb_param,
                 'BatchSize': self.batch_size,
-                'PerformValidationDuringTraining': self.perform_validation_during_training}
+                'Training size': self.train_set.__len__(),
+                'Validation size': self.val_set.__len__(),
+                'Epochs': self.num_epochs,
+                'Training start': self.training_start_time,
+                'Training time': f'{self.current_training_time} s'}
 
     def __repr__(self):
         """Pretty printer showing the setting of the experiment. This is what
@@ -164,7 +180,7 @@ class Experiment():
         """
         string = ''
         for key, val in self.setting().items():
-            string += '{}({})\n'.format(key, val)
+            string += '{} : {}\n'.format(key, val)
         return string
 
     def state_dict(self):
@@ -224,10 +240,14 @@ class Experiment():
             self.stats_manager.init()
             
         start_epoch = self.epoch
+        self.num_epochs = num_epochs
         print("Start/Continue training from epoch {}".format(start_epoch))
         
         if plot is not None:
             plot(self)
+
+        self.current_training_time = 0
+        self.training_start_time = datetime.datetime.now()
 
         for epoch in range(start_epoch, num_epochs):
             s = time.time()
@@ -253,6 +273,7 @@ class Experiment():
                 print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {} ssim: {}".format(self.epoch, time.time() - s, self.history[-1][0]['loss'], self.history[-1][1]['psnr'], self.history[-1][1]['ssim']))
             else:
                  print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {} ssim: {}".format(self.epoch, time.time() - s, self.history[-1]['loss'], self.history[-1]['psnr'], self.history[-1]['ssim']))
+            self.current_training_time += (time.time() - s)
             self.save()
             if plot is not None:
                 plot(self)
