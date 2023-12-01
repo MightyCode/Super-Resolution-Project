@@ -2,8 +2,10 @@ from torch import nn
 from torchvision.transforms.v2 import Resize
 
 class UpscaleNN(nn.Module):
-	def __init__(self, *args, **kwargs) -> None:
-		super().__init__(*args, **kwargs)
+	def __init__(self, super_res_factor=2) -> None:
+		super().__init__()
+		self.super_res_factor = super_res_factor
+
 		self.encoder = nn.Sequential(
 			self.DoubleConv2d(3, 9),
 			nn.MaxPool2d(2),
@@ -21,14 +23,17 @@ class UpscaleNN(nn.Module):
 		self.final = nn.Conv2d(9, 3, 1)
 
 	
-	def forward(self, X):
-		if len(X.shape) == 3:
-			_, h, w = X.shape
-			X = X.unsqueeze(0)
+	def upscale_image(self, image):
+		if len(image.shape) == 3:
+			_, h, w = image.shape
+			image = image.unsqueeze(0)
 		else:
-			_, _, h, w = X.shape
-			
-		X_2 = Resize((h*2, w*2))(X)
+			_, _, h, w = image.shape
+
+		return Resize((h * self.super_res_factor, w * self.super_res_factor))(image)
+
+	def forward(self, X):
+		X_2 = self.upscale_image(X)
 
 		value = self.final(self.decoder(self.encoder(X_2))) + X_2
 
@@ -38,7 +43,7 @@ class UpscaleNN(nn.Module):
 	def make_encoder(self, depth = 3, in_c = 3, mult = 3):
 		seq = []
 		for i in range(1, depth):
-			seq.append(self.DoubleConv2d(in_c*i, in_c*(i+1)))
+			seq.append(self.DoubleConv2d(in_c*i, in_c*(i + 1)))
 			seq.append(nn.MaxPool2d(2))
 		seq = [self.DoubleConv2d(in_c, in_c*mult)]
 			
