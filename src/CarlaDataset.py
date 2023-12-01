@@ -1,3 +1,5 @@
+from src.PatchImageTool import PatchImageTool
+
 import os
 from typing import Any
 import gdown
@@ -240,36 +242,12 @@ class CarlaDatasetPatch(CarlaDataset):
             image_low_res = self.transforms(image_low_res)
             image_high_res = self.transforms(image_high_res)
 
-        #take a 16x16 patch corresponding to index for the low res image and the 32x32 patch for the high res image
-        line = part_on_image % self.h
-        col = part_on_image // self.h
-        sf = self.scale_factor
+        patch_low_res = PatchImageTool.get_patch_from_image_index(image_low_res, part_on_image, self.patch_size, w=self.w, h=self.h)
+        patch_high_res = PatchImageTool.get_patch_from_image_index(image_high_res, part_on_image, self.patch_size * self.scale_factor, w=self.w, h=self.h)
 
-        start_low_x = self.patch_size * line
-        start_low_y = self.patch_size * col
+        print(patch_low_res.shape, patch_high_res.shape)
 
-        end_low_x = start_low_x + self.patch_size
-        end_low_y = start_low_y + self.patch_size
-
-        if end_low_x > image_low_res.shape[1]:
-            end_low_x = image_low_res.shape[1]
-            start_low_x = end_low_x - self.patch_size
-
-        if end_low_y > image_low_res.shape[2]:
-            end_low_y = image_low_res.shape[2]
-            start_low_y = end_low_y - self.patch_size
-
-
-        start_high_x = start_low_x * sf
-        start_high_y = start_low_y * sf
-
-        end_high_x = end_low_x * sf
-        end_high_y = end_low_y * sf
-
-        image_low_res = image_low_res[:, start_low_x: end_low_x, start_low_y : end_low_y]
-        image_high_res = image_high_res[:, start_high_x: end_high_x, start_high_y : end_high_y]
-
-        return image_low_res, image_high_res
+        return patch_low_res, patch_high_res
 
     def get_all_patch_for_image(self, index_patch):
         image_index = index_patch // (self.h * self.w)
@@ -280,36 +258,9 @@ class CarlaDatasetPatch(CarlaDataset):
             image_low_res = self.transforms(image_low_res)
             image_high_res = self.transforms(image_high_res)
 
-        patches_low_res = np.zeros((self.h * self.w, 3, self.patch_size, self.patch_size))
-        patches_high_res = np.zeros((self.h * self.w, 3, self.patch_size * self.scale_factor, self.patch_size * self.scale_factor))
-
-        for i in range(self.h):
-            for j in range(self.w):
-                sf = self.scale_factor
-                start_low_x = self.patch_size * i
-                start_low_y = self.patch_size * j
-
-                end_low_x = start_low_x + self.patch_size
-                end_low_y = start_low_y + self.patch_size
-
-                if end_low_x > image_low_res.shape[1]:
-                    end_low_x = image_low_res.shape[1]
-                    start_low_x = end_low_x - self.patch_size
-
-                if end_low_y > image_low_res.shape[2]:
-                    end_low_y = image_low_res.shape[2]
-                    start_low_y = end_low_y - self.patch_size
-
-
-                start_high_x = start_low_x * sf
-                start_high_y = start_low_y * sf
-
-                end_high_x = end_low_x * sf
-                end_high_y = end_low_y * sf
-
-                patches_low_res[i * self.w + j] = image_low_res[:, start_low_x: end_low_x, start_low_y : end_low_y]
-                patches_high_res[i * self.w + j] = image_high_res[:, start_high_x: end_high_x, start_high_y : end_high_y]
-
+        patches_low_res = PatchImageTool.get_patchs_from_image(image_low_res, self.patch_size, w=self.w, h=self.h)
+        patches_high_res = PatchImageTool.get_patchs_from_image(image_high_res, self.patch_size * self.scale_factor, w=self.w, h=self.h)
+    
         return patches_low_res, patches_high_res
     
     def get_index_for_image(self, index_patch):

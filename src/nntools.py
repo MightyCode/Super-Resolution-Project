@@ -102,15 +102,23 @@ class Experiment():
     def __init__(self, net, train_set, val_set, optimizer, stats_manager, device, criterion,
                  output_dir=None, batch_size=16, perform_validation_during_training=False):
 
+        self.net = net
         # Define data loaders
-        train_loader = td.DataLoader(train_set, batch_size=batch_size, shuffle=True,
-                                     drop_last=True)
+        if train_set is not None and batch_size is not None:
+            self.train_loader = td.DataLoader(train_set, batch_size=batch_size, shuffle=True,
+                                        drop_last=True)
 
-        val_loader = td.DataLoader(val_set, batch_size=batch_size, shuffle=False,
-                                   drop_last=True)
+        if val_set is not None and batch_size is not None:
+            self.val_loader = td.DataLoader(val_set, batch_size=batch_size, shuffle=False,
+                                    drop_last=True)
+
+        self.optimizer = optimizer
+        self.stat_manager = stats_manager
+        self.device = device
+        self.perform_validation_during_training = perform_validation_during_training
 
         # Initialize history
-        history = []
+        self.history = []
 
         self.criterion = criterion
 
@@ -211,7 +219,10 @@ class Experiment():
                 on ``stdout`` or save statistics in a log file. (default: None)
         """
         self.net.train()
-        self.stats_manager.init()
+
+        if self.stat_manager is not None:
+            self.stats_manager.init()
+            
         start_epoch = self.epoch
         print("Start/Continue training from epoch {}".format(start_epoch))
         
