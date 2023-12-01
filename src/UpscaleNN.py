@@ -30,7 +30,7 @@ class UpscaleNN(nn.Module):
 		else:
 			_, _, h, w = image.shape
 
-		return Resize((h * self.super_res_factor, w * self.super_res_factor))(image)
+		return Resize((h * self.super_res_factor, w * self.super_res_factor), antialias=True)(image)
 
 	def forward(self, X):
 		X_2 = self.upscale_image(X)
@@ -39,14 +39,6 @@ class UpscaleNN(nn.Module):
 
 		# Clamp value beteween 0 and 1
 		return value.clamp(0, 1)
-		
-	def make_encoder(self, depth = 3, in_c = 3, mult = 3):
-		seq = []
-		for i in range(1, depth):
-			seq.append(self.DoubleConv2d(in_c*i, in_c*(i + 1)))
-			seq.append(nn.MaxPool2d(2))
-		seq = [self.DoubleConv2d(in_c, in_c*mult)]
-			
 
 	def DoubleConv2d(self, c_in, c_out, k_size=3):
 		return nn.Sequential(
@@ -55,3 +47,46 @@ class UpscaleNN(nn.Module):
 			nn.Conv2d(c_out, c_out, k_size, padding=1),
 			nn.ReLU()
 		)
+	
+class UpscaleResidualNN(UpscaleNN):
+	def __init__(self, super_res_factor=2) -> None:
+		super().__init__(super_res_factor)
+		self.super_res_factor = super_res_factor
+		
+		self.encod1 = nn.Sequential(
+			self.DoubleConv2d(3, 16),
+			nn.BatchNorm2d(16)
+		)
+		self.encod2 = nn.Sequential(
+			self.DoubleConv2d(16, 32),
+			nn.BatchNorm2d(32)
+		)
+		self.encod3 = nn.Sequential(
+			self.DoubleConv2d(32, 64),
+			nn.BatchNorm2d(64)
+		)
+		self.decod1 = nn.Sequential(
+			nn.ConvTranspose2d(64, 32, 2, 2),
+			nn.BatchNorm2d(32)
+		)
+		self.decod2 = nn.Sequential(
+			self.DoubleConv2d(32, 32),
+			nn.ConvTranspose2d(32, 16, 2, 2),
+			nn.BatchNorm2d(16)
+		)
+		self.decod3 = nn.Sequential(
+			self.DoubleConv2d(16, 16),
+			nn.Conv2d(16, 3, 1),
+			nn.BatchNorm2d(3)
+		)
+
+	
+	def forward(self, X):
+		X = self.upscale_image(X)
+		X_1 = self.encod1(X)
+		X_2 = self.encod2(nn.MaxPool2d(2)(X_1))
+		X_4 = self.encod3(nn.MaxPool2d(2)(X_2))
+		result = self.decod1(X_4)
+		result = self.decod2(result+X_2)
+		result = self.decod3(result+X_1)
+		return (result + X)
