@@ -9,6 +9,7 @@ import time
 import torch
 import torch.utils.data as td
 import datetime
+import json
 
 
 class StatsManager():
@@ -120,9 +121,12 @@ class Experiment():
         self.nb_param = sum(p.numel() for p in net.parameters() if p.requires_grad)
 
         # initialization for config.txt
-        self.num_epochs = None
+        self.num_epochs = 0
+        self.current_epoch = 0
+
         self.current_training_time = None
         self.training_start_time = None
+        self.batch_size = batch_size
 
         # Define data loaders
         if train_set is not None and batch_size is not None:
@@ -134,8 +138,9 @@ class Experiment():
                                     drop_last=True)
 
         self.optimizer = optimizer
-        self.stat_manager = stats_manager
+        self.stats_manager = stats_manager
         self.device = device
+        self.output_dir = output_dir
         self.perform_validation_during_training = perform_validation_during_training
 
         # Initialize history
@@ -146,8 +151,9 @@ class Experiment():
         # Define checkpoint paths
         if output_dir is not None:
             os.makedirs(output_dir, exist_ok=True)
-            checkpoint_path = os.path.join(output_dir, "checkpoint.pth.tar")
-            config_path = os.path.join(output_dir, "config.txt")
+            self.checkpoint_path = os.path.join(output_dir, "checkpoint.pth.tar")
+            self.state_path = os.path.join(output_dir, "state.txt")
+            self.info_path = os.path.join(output_dir, "info.json")
 
         # Transfer all local arguments/variables into attributes
         locs = {k: v for k, v in locals().items() if k != 'self'}
@@ -155,9 +161,19 @@ class Experiment():
 
         if output_dir is not None:
             # Load checkpoint and check compatibility
-            if os.path.isfile(config_path):
-                with open(config_path, 'r') as f:
-                    if f.read()[:-1] != repr(self):
+            if os.path.isfile(self.state_path):
+                with open(self.state_path, 'r') as f:
+                    state_file = f.read().strip()
+                    inner_state = self.state().strip()
+
+                    print(len(inner_state), " vs ", len(state_file))
+
+                    for i in range(len(inner_state)):
+                        if inner_state[i] != state_file[i]:
+                            print("Current char don't match: ", inner_state[i], " vs ", state_file[i], " at index ", i)
+
+                    # Don't take into account the last character of the file, \n    
+                    if state_file != inner_state:
                         raise ValueError(
                             "Cannot create this experiment: "
                             "I found a checkpoint conflicting with the current setting.")
@@ -170,36 +186,60 @@ class Experiment():
         """Returns the number of epochs already performed."""
         return len(self.history)
 
-    def setting(self):
+    def info(self):
         """Returns the setting of the experiment."""
-        return {'Net': self.net,
-                'Optimizer': self.optimizer,
-                'Device' : self.device,
-                'Parameters': self.nb_param,
-                'BatchSize': self.batch_size,
-                'Training size': self.train_set_len,
-                'Validation size': self.val_set_len,
-                'Epochs': self.num_epochs,
-                'Training start': self.training_start_time,
-                'Training time': f'{self.current_training_time} s'}
+        return {
+            'Info version' : 1.0,
+            'Device' : self.device,
+            'Parameters': self.nb_param,
+            'BatchSize': self.batch_size,
+            'Training size': self.train_set_len,
+            'Validation size': self.val_set_len,
+            'Goal epoch': self.num_epochs,
+            'Current epoch': self.current_epoch,
+            'Training start': self.training_start_time,
+            'Training time': f'{self.current_training_time} s'
+        }
+    
 
-    def __repr__(self):
-        """Pretty printer showing the setting of the experiment. This is what
-        is displayed when doing ``print(experiment)``. This is also what is
-        saved in the ``config.txt`` file.
-        """
-        string = ''
-        for key, val in self.setting().items():
-            string += '{} : {}\n'.format(key, val)
-        return string
+    def info_to_writeable(self):
+        result = {}
+        
+        for key, val in self.info().items():
+            result[key] = str(val)
 
-    def state_dict(self):
+        return result
+    
+
+    def state(self):
+        return "Net({})\n".format(self.net) + \
+                "Optimizer({})\n".format(self.optimizer)
+
+    def checkpoint_dict(self):
         """Returns the current state of the experiment."""
-        return {'Net': self.net.state_dict(),
-                'Optimizer': self.optimizer.state_dict(),
-                'History': self.history}
+        return { 
+            'Net': self.net.state_dict(),
+            'Optimizer': self.optimizer.state_dict(),
+            'History': self.history 
+        }
 
-    def load_state_dict(self, checkpoint):
+    def save(self):
+        """Saves the experiment on disk, i.e, create/update the last checkpoint."""
+        if self.output_dir is not None:
+            
+            # Save checkpoint
+            torch.save(self.checkpoint_dict(), self.checkpoint_path)
+
+            # Save state
+            with open(self.state_path, 'w') as f:
+                print(self.state(), file=f)
+
+            # Save config
+            with open(self.info_path, 'w') as f:
+                json.dump(self.info_to_writeable(), f, indent=4)
+
+
+    def load_checkpoint_dict(self, checkpoint):
         """Loads the experiment from the input checkpoint."""
         self.net.load_state_dict(checkpoint['Net'])
         self.optimizer.load_state_dict(checkpoint['Optimizer'])
@@ -213,19 +253,25 @@ class Experiment():
                 if isinstance(v, torch.Tensor):
                     state[k] = v.to(self.device)
 
-    def save(self):
-        """Saves the experiment on disk, i.e, create/update the last checkpoint."""
-        if self.output_dir is not None:
-            torch.save(self.state_dict(), self.checkpoint_path)
-            with open(self.config_path, 'w') as f:
-                print(self, file=f)
-
     def load(self):
         """Loads the experiment from the last checkpoint saved on disk."""
         checkpoint = torch.load(self.checkpoint_path,
                                 map_location=self.device)
-        self.load_state_dict(checkpoint)
+        
+        self.load_checkpoint_dict(checkpoint)
+
         del checkpoint
+
+    def __repr__(self):
+        """Pretty printer showing the setting of the experiment. This is what
+        is displayed when doing ``print(experiment)``. This is also what is
+        saved in the ``config.txt`` file.
+        """
+        string = ''
+        for key, val in self.info().items():
+            string += '{} : {}\n'.format(key, val)
+
+        return string
 
     def run(self, num_epochs, plot=None):
         """Runs the experiment, i.e., trains the network using backpropagation
@@ -246,7 +292,7 @@ class Experiment():
         """
         self.net.train()
 
-        if self.stat_manager is not None:
+        if self.stats_manager is not None:
             self.stats_manager.init()
             
         start_epoch = self.epoch
@@ -259,11 +305,12 @@ class Experiment():
         self.current_training_time = 0
         self.training_start_time = datetime.datetime.now()
 
-        for epoch in range(start_epoch, num_epochs):
+        for current_epoch in range(start_epoch, num_epochs):
+            self.current_epoch = current_epoch
             s = time.time()
             self.stats_manager.init()
+
             for x, d in self.train_loader:
-                torch.cuda.empty_cache()
                 x, d = x.to(self.device), d.to(self.device)
                 self.optimizer.zero_grad()
                 y = self.net.forward(x)
@@ -279,14 +326,19 @@ class Experiment():
             else:
                 self.history.append(
                     (self.stats_manager.summarize(), self.evaluate()))
+                
             if self.perform_validation_during_training:
                 print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {} ssim: {}".format(self.epoch, time.time() - s, self.history[-1][0]['loss'], self.history[-1][1]['psnr'], self.history[-1][1]['ssim']))
             else:
-                 print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {} ssim: {}".format(self.epoch, time.time() - s, self.history[-1]['loss'], self.history[-1]['psnr'], self.history[-1]['ssim']))
+                print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {} ssim: {}".format(self.epoch, time.time() - s, self.history[-1]['loss'], self.history[-1]['psnr'], self.history[-1]['ssim']))
+            
             self.current_training_time += (time.time() - s)
+
             self.save()
+            
             if plot is not None:
                 plot(self)
+
         print("Finish training for {} epochs".format(num_epochs))
 
     def evaluate(self):
@@ -296,12 +348,16 @@ class Experiment():
         """
         self.stats_manager.init()
         self.net.eval()
+
         with torch.no_grad():
             for x, d in self.val_loader:
-                torch.cuda.empty_cache()
                 x, d = x.to(self.device), d.to(self.device)
                 y = self.net.forward(x)
+
                 loss = self.criterion(y, d)
+
                 self.stats_manager.accumulate(loss.item(), x, y, d)
+
         self.net.train()
+
         return self.stats_manager.summarize()

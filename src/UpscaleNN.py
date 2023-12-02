@@ -83,10 +83,18 @@ class UpscaleResidualNN(UpscaleNN):
 	
 	def forward(self, X):
 		X = self.upscale_image(X)
+
 		X_1 = self.encod1(X)
+
 		X_2 = self.encod2(nn.MaxPool2d(2)(X_1))
+
 		X_4 = self.encod3(nn.MaxPool2d(2)(X_2))
+
 		result = self.decod1(X_4)
-		result = self.decod2(result+X_2)
-		result = self.decod3(result+X_1)
-		return (result + X)
+
+		result = self.decod2(result + X_2)
+
+		result = self.decod3(result + X_1)
+
+		# Clamp value beteween 0 and 1
+		return (result + X).clamp(0, 1)
