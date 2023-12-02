@@ -11,6 +11,25 @@ import torch.utils.data as td
 import datetime
 import json
 
+# Get info for training info file
+import platform, subprocess, re, socket
+import psutil
+import sys
+
+def get_processor_name():
+    if platform.system() == "Windows":
+        return platform.processor()
+    elif platform.system() == "Darwin":
+        os.environ['PATH'] = os.environ['PATH'] + os.pathsep + '/usr/sbin'
+        command ="sysctl -n machdep.cpu.brand_string"
+        return subprocess.check_output(command).strip()
+    elif platform.system() == "Linux":
+        command = "cat /proc/cpuinfo"
+        all_info = subprocess.check_output(command, shell=True).decode().strip()
+        for line in all_info.split("\n"):
+            if "model name" in line:
+                return re.sub( ".*model name.*:", "", line,1)
+    return ""
 
 class StatsManager():
     """
@@ -101,6 +120,8 @@ class Experiment():
             set and the validation set. (default: False)
     """
 
+    INFO_VERSION = 1.0
+
     def __init__(self, net, train_set, val_set, optimizer, stats_manager, device, criterion,
                  output_dir=None, batch_size=16, perform_validation_during_training=False):
 
@@ -118,14 +139,17 @@ class Experiment():
         else:
             self.val_set_len = 0
 
+        # Init for info file
         self.nb_param = sum(p.numel() for p in net.parameters() if p.requires_grad)
-
-        # initialization for config.txt
-        self.num_epochs = 0
+        self.version = Experiment.INFO_VERSION
+        self.trains = None
+        
+        self.goal_epoch = 0
+        self.start_epoch = 0
         self.current_epoch = 0
 
-        self.current_training_time = None
-        self.training_start_time = None
+        self.current_training_time = 0
+        self.training_start_time = 0
         self.batch_size = batch_size
 
         # Define data loaders
@@ -182,28 +206,39 @@ class Experiment():
 
     def info(self):
         """Returns the setting of the experiment."""
-        return {
-            'Info version' : 1.0,
-            'Device' : self.device,
-            'Parameters': self.nb_param,
-            'BatchSize': self.batch_size,
-            'Training size': self.train_set_len,
-            'Validation size': self.val_set_len,
-            'Goal epoch': self.num_epochs,
-            'Current epoch': self.current_epoch,
-            'Training start': self.training_start_time,
-            'Training time': f'{self.current_training_time} s'
+        result = {
+            "Version": self.version,
+            "NumberParameters": self.nb_param,
+            "GoalEpoch": self.goal_epoch,
+            "Trains": []
         }
-    
 
-    def info_to_writeable(self):
-        result = {}
-        
-        for key, val in self.info().items():
-            result[key] = str(val)
+        if self.trains is not None:
+            for train in self.trains:
+                if train["StartEpoch"] != self.start_epoch:
+                    result["Trains"].append(train)
+
+        train_info = {}
+        train_info['DeviceName'] = platform.node()
+        train_info['SocketName'] = socket.gethostname()
+        train_info['CPU'] = get_processor_name()
+        train_info['TorchDevice'] = str(self.device)
+
+        if torch.cuda.is_available():
+            train_info['GPU'] = torch.cuda.get_device_name()
+        train_info['RAM'] = str(round(psutil.virtual_memory().total / (1024.0 **3), 2)) + " GB"
+        train_info['Python'] = sys.version
+        train_info['StartEpoch'] = self.start_epoch
+        train_info['EndEpoch'] = self.current_epoch
+        train_info['BatchSize'] = self.batch_size
+        train_info['TrainingSize'] = self.train_set_len
+        train_info['ValidationSize'] = self.val_set_len
+        train_info['TrainingStartDate'] = str(self.training_start_time)
+        train_info['TrainingTime'] = f'{str(round(self.current_training_time, 2))} s'
+
+        result["Trains"].append(train_info)
 
         return result
-    
 
     def state(self):
         return "Net({})\n".format(self.net) + \
@@ -220,7 +255,6 @@ class Experiment():
     def save(self):
         """Saves the experiment on disk, i.e, create/update the last checkpoint."""
         if self.output_dir is not None:
-            
             # Save checkpoint
             torch.save(self.checkpoint_dict(), self.checkpoint_path)
 
@@ -230,7 +264,7 @@ class Experiment():
 
             # Save config
             with open(self.info_path, 'w') as f:
-                json.dump(self.info_to_writeable(), f, indent=4)
+                json.dump(self.info(), f, indent=4)
 
 
     def load_checkpoint_dict(self, checkpoint):
@@ -242,19 +276,31 @@ class Experiment():
         # The following loops are used to fix a bug that was
         # discussed here: https://github.com/pytorch/pytorch/issues/2830
         # (it is supposed to be fixed in recent PyTorch version)
-        for state in self.optimizer.state.values():
+        """for state in self.optimizer.state.values():
             for k, v in state.items():
                 if isinstance(v, torch.Tensor):
-                    state[k] = v.to(self.device)
+                    state[k] = v.to(self.device)"""
 
     def load(self):
-        """Loads the experiment from the last checkpoint saved on disk."""
-        checkpoint = torch.load(self.checkpoint_path,
-                                map_location=self.device)
-        
-        self.load_checkpoint_dict(checkpoint)
+        # if checkpoint_path exists
 
-        del checkpoint
+        if os.path.isfile(self.checkpoint_path):
+            """Loads the experiment from the last checkpoint saved on disk."""
+            checkpoint = torch.load(self.checkpoint_path,
+                                    map_location=self.device)
+            
+            self.load_checkpoint_dict(checkpoint)
+
+            del checkpoint
+
+        if os.path.isfile(self.info_path):
+            with open(self.info_path, 'r') as f:
+                info = json.load(f)
+                
+                self.version = info['Version']
+                self.nb_param = info['NumberParameters']
+                self.trains = info['Trains']
+                self.goal_epoch = info['GoalEpoch']
 
     def __repr__(self):
         """Pretty printer showing the setting of the experiment. This is what
@@ -288,10 +334,11 @@ class Experiment():
 
         if self.stats_manager is not None:
             self.stats_manager.init()
-            
-        start_epoch = self.epoch
-        self.num_epochs = num_epochs
-        print("Start/Continue training from epoch {}".format(start_epoch))
+        
+
+        self.start_epoch = self.epoch
+        self.goal_epoch = num_epochs
+        print("Start/Continue training from epoch {}".format(self.start_epoch))
         
         if plot is not None:
             plot(self)
@@ -299,7 +346,7 @@ class Experiment():
         self.current_training_time = 0
         self.training_start_time = datetime.datetime.now()
 
-        for current_epoch in range(start_epoch, num_epochs):
+        for current_epoch in range(self.start_epoch, self.goal_epoch):
             self.current_epoch = current_epoch
             s = time.time()
             self.stats_manager.init()
@@ -333,7 +380,7 @@ class Experiment():
             if plot is not None:
                 plot(self)
 
-        print("Finish training for {} epochs".format(num_epochs))
+        print("Finish training for {} epochs".format(self.goal_epoch))
 
     def evaluate(self):
         """Evaluates the experiment, i.e., forward propagates the validation set
