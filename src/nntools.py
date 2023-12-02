@@ -166,12 +166,6 @@ class Experiment():
                     state_file = f.read().strip()
                     inner_state = self.state().strip()
 
-                    print(len(inner_state), " vs ", len(state_file))
-
-                    for i in range(len(inner_state)):
-                        if inner_state[i] != state_file[i]:
-                            print("Current char don't match: ", inner_state[i], " vs ", state_file[i], " at index ", i)
-
                     # Don't take into account the last character of the file, \n    
                     if state_file != inner_state:
                         raise ValueError(
