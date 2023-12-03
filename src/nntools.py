@@ -8,6 +8,8 @@ import os
 import time
 import torch
 import torch.utils.data as td
+from torch.utils.tensorboard import SummaryWriter
+import torchvision
 import datetime
 import json
 
@@ -156,6 +158,7 @@ class Experiment():
         if train_set is not None and batch_size is not None:
             self.train_loader = td.DataLoader(train_set, batch_size=batch_size, shuffle=True,
                                         drop_last=True)
+            self.x_tensorboard, self.d_tensorboard = next(iter(self.train_loader))
 
         if val_set is not None and batch_size is not None:
             self.val_loader = td.DataLoader(val_set, batch_size=batch_size, shuffle=False,
@@ -169,6 +172,10 @@ class Experiment():
 
         # Initialize history
         self.history = []
+
+        #initialize tensorboard writer
+        self.writer = SummaryWriter(self.output_dir)
+        self.writer.add_graph(self.net, self.x_tensorboard.to(self.device))
 
         self.criterion = criterion
 
@@ -368,6 +375,10 @@ class Experiment():
                 self.history.append(
                     (self.stats_manager.summarize(), self.evaluate()))
                 
+            self.add_metrics_to_tensorboard()
+            if self.current_epoch % 5 == 0:
+                self.add_image_to_tensorboard()
+                
             if self.perform_validation_during_training:
                 print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {} ssim: {}".format(self.epoch, time.time() - s, self.history[-1][0]['loss'], self.history[-1][1]['psnr'], self.history[-1][1]['ssim']))
             else:
@@ -399,6 +410,37 @@ class Experiment():
 
                 self.stats_manager.accumulate(loss.item(), x, y, d)
 
+            if self.current_epoch % 5 == 0:
+                self.add_image_to_tensorboard('val')
+
         self.net.train()
 
         return self.stats_manager.summarize()
+    
+
+    def add_metrics_to_tensorboard(self):
+        if not self.perform_validation_during_training:
+            self.writer.add_scalar('Loss/train', self.history[-1]['loss'], self.current_epoch)
+            self.writer.add_scalar('PSNR/train', self.history[-1]['psnr'], self.current_epoch)
+            self.writer.add_scalar('SSIM/train', self.history[-1]['ssim'], self.current_epoch)
+        else:
+            self.writer.add_scalar('Loss/train', self.history[-1][0]['loss'], self.current_epoch)
+            self.writer.add_scalar('PSNR/train', self.history[-1][0]['psnr'], self.current_epoch)
+            self.writer.add_scalar('SSIM/train', self.history[-1][0]['ssim'], self.current_epoch)
+            self.writer.add_scalar('Loss/val', self.history[-1][1]['loss'], self.current_epoch)
+            self.writer.add_scalar('PSNR/val', self.history[-1][1]['psnr'], self.current_epoch)
+            self.writer.add_scalar('SSIM/val', self.history[-1][1]['ssim'], self.current_epoch)
+
+    
+    def add_image_to_tensorboard(self, mode='train'):
+        if mode == 'val':
+            x,d = next(iter(self.val_loader))
+        else:
+            x,d = self.x_tensorboard, self.d_tensorboard
+        x,d = x.to(self.device), d.to(self.device)
+        with torch.no_grad():
+            y = self.net.forward(x)
+        grid = torch.cat((d,y), dim=0)
+        grid = torchvision.utils.make_grid(grid, nrow=2, padding=2, normalize=True)
+        self.writer.add_image('Image/{}'.format(mode), grid, self.current_epoch)
+            
