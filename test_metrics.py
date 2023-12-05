@@ -7,7 +7,7 @@ sys.path.append(parent_dir)
 
 if __name__ == "__main__":
     import cv2
-    from metrics import Metric
+    from src.metrics import Metric
 
     path1 = "resources/1.png" if len(sys.argv) < 2 else sys.argv[1]
     image = cv2.imread(path1)

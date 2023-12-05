@@ -13,12 +13,17 @@ import numpy as np
 import math
 
 class CarlaDataset(Dataset):
+    def print(self, *args, **kwargs):
+        if self.verbose:
+            print(*args, **kwargs)
+
     def __init__(self, 
                  high_res:str = "1920x1080", 
                  low_res:str = "1280x720", 
                  split:str = "train", 
                  transforms = None, 
-                 download:bool = False):
+                 download:bool = False,
+                 verbose:bool = True):
         super().__init__()
         self.split = split
         self.resources_folder: str = "resources"
@@ -34,10 +39,13 @@ class CarlaDataset(Dataset):
         self.low_res_path = os.path.join(self.dir_path, self.low_res)
 
         self.chosen_indices = None
+        
+        self.verbose = verbose
 
         if self.look_for_dataset():
             self.images = os.listdir(self.high_res_path)
-            print("Dataset already present")
+            
+            self.print("Dataset already present")
 
             return
 
@@ -72,23 +80,23 @@ class CarlaDataset(Dataset):
         folder_path = os.path.join(self.resources_folder, dest)
         zip_path = folder_path + ".zip"
         if os.path.exists(folder_path):
-            print(f"Dataset already downloaded at {folder_path}")
+            self.print(f"Dataset already downloaded at {folder_path}")
             return
         gdown.download(url, zip_path, quiet=False)
-        print(f"Extracting to {folder_path} ...")
+        self.print(f"Extracting to {folder_path} ...")
         self.unzip_file(zip_path, folder_path)
         os.remove(zip_path)
-        print("Done!")
+        self.print("Done!")
 
     def resize_dataset(self, source:str, dest:str) -> None:
         source_folder = os.path.join(self.resources_folder, source)
         dest_folder = os.path.join(self.resources_folder, dest)
         if os.path.exists(dest_folder):
-            print("Dataset already resized")
+            self.print("Dataset already resized")
             return
         os.mkdir(dest_folder)
         destx, desty = dest.split("x")
-        print("Resizing images ...")
+        self.print("Resizing images ...")
 
         for img in os.listdir(source_folder):
             source_img = cv2.imread(os.path.join(source_folder, img))
@@ -97,10 +105,10 @@ class CarlaDataset(Dataset):
                 dest_img_path = os.path.join(dest_folder, img)
                 cv2.imwrite(dest_img_path, dest_img)
             except:
-                print(f"Broken image, skipping it ({img})")
+                self.print(f"Broken image, skipping it ({img})")
                 os.remove(os.path.join(source_folder, img))
         assert len(os.listdir(source_folder)) == len(os.listdir(dest_folder))
-        print("Done!")
+        self.print("Done!")
 
     def split_dataset(self) -> None:
         dir_train_high = os.path.join(self.resources_folder, self.train, self.high_res)
@@ -109,7 +117,7 @@ class CarlaDataset(Dataset):
         dir_test_low = os.path.join(self.resources_folder, self.test, self.low_res)
 
         if os.path.exists(dir_train_high):
-            print("Dataset already splitted")
+            self.print("Dataset already splitted")
             return
         
         os.makedirs(dir_train_high)
@@ -121,7 +129,7 @@ class CarlaDataset(Dataset):
         dir_low = os.path.join(self.resources_folder, self.low_res)
         images = os.listdir(dir_high)
 
-        print("Moving images...")
+        self.print("Moving images...")
         self._move_images(images[:int(0.8*len(images))], dir_high, dir_train_high)
         self._move_images(images[:int(0.8*len(images))], dir_low, dir_train_low)
         self._move_images(images[int(0.8*len(images)):], dir_high, dir_test_high)
@@ -129,7 +137,7 @@ class CarlaDataset(Dataset):
 
         self._remove_folder(dir_high)
         self._remove_folder(dir_low)
-        print("Done!")
+        self.print("Done!")
 
     def _move_images(self, images:list, source:str, dest:str) -> None:
         for img in images:
@@ -150,9 +158,9 @@ class CarlaDataset(Dataset):
     def _remove_folder(self, folder_path: str) -> None:
         try:
             os.rmdir(folder_path)
-            print(f"Folder '{folder_path}' removed successfully.")
+            self.print(f"Folder '{folder_path}' removed successfully.")
         except OSError as e:
-            print(f"Error: {e}")
+            self.print(f"Error: {e}")
 
     def check_index(self, index):
         if index < 0:
@@ -193,10 +201,10 @@ class CarlaDataset(Dataset):
         dir_test_high = os.path.join(self.resources_folder, self.test, self.high_res)
         dir_test_low = os.path.join(self.resources_folder, self.test, self.low_res)
 
-        print(f'Number of train low resolution images: {len(os.listdir(dir_train_low))}')
-        print(f'Number of train high resolution images: {len(os.listdir(dir_train_high))}')
-        print(f'Number of valid low resolution images: {len(os.listdir(dir_test_low))}')
-        print(f'Number of valid high resolution images: {len(os.listdir(dir_test_high))}')
+        self.print(f'Number of train low resolution images: {len(os.listdir(dir_train_low))}')
+        self.print(f'Number of train high resolution images: {len(os.listdir(dir_train_high))}')
+        self.print(f'Number of valid low resolution images: {len(os.listdir(dir_test_low))}')
+        self.print(f'Number of valid high resolution images: {len(os.listdir(dir_test_high))}')
 
 
 
@@ -207,8 +215,9 @@ class CarlaDatasetPatch(CarlaDataset):
                  split:str = "train", 
                  transforms = None, 
                  download:bool = False, 
-                 patch_size=16):
-        super().__init__(high_res, low_res, split, transforms, download)
+                 patch_size=16,
+                 verbose:bool = True):
+        super().__init__(high_res, low_res, split, transforms, download, verbose=verbose)
         self.patch_size = patch_size
         #open the first image of the train low res set to get the size of the images
         I = self.open_image(os.path.join(self.resources_folder, self.train, self.low_res,
@@ -284,10 +293,10 @@ class CarlaDatasetPatch(CarlaDataset):
         dir_test_high = os.path.join(self.resources_folder, self.test, self.high_res)
         dir_test_low = os.path.join(self.resources_folder, self.test, self.low_res)
 
-        print(f'Number of train low resolution images: {len(os.listdir(dir_train_low)) * self.h * self.w}')
-        print(f'Number of train high resolution images: {len(os.listdir(dir_train_high)) * self.h * self.w}')
-        print(f'Number of valid low resolution images: {len(os.listdir(dir_test_low)) * self.h * self.w}')
-        print(f'Number of valid high resolution images: {len(os.listdir(dir_test_high)) * self.h * self.w}')
+        self.print(f'Number of train low resolution images: {len(os.listdir(dir_train_low)) * self.h * self.w}')
+        self.print(f'Number of train high resolution images: {len(os.listdir(dir_train_high)) * self.h * self.w}')
+        self.print(f'Number of valid low resolution images: {len(os.listdir(dir_test_low)) * self.h * self.w}')
+        self.print(f'Number of valid high resolution images: {len(os.listdir(dir_test_high)) * self.h * self.w}')
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt

@@ -8,3 +8,4 @@ tqdm
 scikit-image
 gdown
 scikit-learn
+tensorboard
