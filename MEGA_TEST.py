@@ -170,8 +170,8 @@ def compute_metrics(dataset, method, upscale_factor, model, device):
         raise Exception("The method name is not correct")
     
 def compute_metrics_alternative_method(dataset, dataloader, method, altertive_method, upscale_factor, device, verbose=False):
-    psnr = np.zeros(len(dataloader))
-    ssim = np.zeros(len(dataloader))
+    psnr = np.zeros(len(dataset))
+    ssim = np.zeros(len(dataset))
 
     image_size = (dataset[0][1].shape[1], dataset[0][1].shape[2])
 
@@ -196,7 +196,6 @@ def compute_metrics_alternative_method(dataset, dataloader, method, altertive_me
         for j in range(0, end - index):
             predicted = torchUtil.tensor_to_numpy(predicted_images[j])
             high_res = torchUtil.tensor_to_numpy(high_res_batch[j])
-
             psnr[j + index] = metrics.peak_signal_noise_ratio(high_res, predicted)
             ssim[j + index] = metrics.structural_similarity(high_res, predicted, win_size=7, data_range=1, multichannel=True, channel_axis=2)
 
