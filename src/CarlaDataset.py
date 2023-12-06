@@ -27,10 +27,19 @@ class CarlaDataset(Dataset):
         super().__init__()
         self.split = split
         self.resources_folder: str = "resources"
+
         self.high_res = high_res
         self.low_res = low_res
+
         self.train = "train"
         self.test = "test"
+
+        temp = high_res.split("x")
+        self.high_res_size = (int(temp[0]), int(temp[1]))
+
+        temp = low_res.split("x")
+        self.low_res_size = (int(temp[0]), int(temp[1]))
+
         self.transforms = transforms
         self.dataset_link = self.get_link(high_res)
 
@@ -223,6 +232,9 @@ class CarlaDatasetPatch(CarlaDataset):
         I = self.open_image(os.path.join(self.resources_folder, self.train, self.low_res,
                                         os.listdir(os.path.join(self.resources_folder, self.train, self.low_res))[0]))  
         
+        self.low_res_image_size = I.shape[0:2]
+
+
         # If the image is not divisible by the patch size, we add a patch to the right and to the bottom
         self.h = math.ceil(I.shape[0] / self.patch_size)
         self.w = math.ceil(I.shape[1] / self.patch_size)
@@ -285,6 +297,9 @@ class CarlaDatasetPatch(CarlaDataset):
 
     def get_full_image(self, index):
         return super().__getitem__(index)
+    
+    def get_low_res_full_image_size(self):
+        return (self.h * self.patch_size, self.w * self.patch_size)
     
     def get_info(self):
         # Display the sizes of the dataset

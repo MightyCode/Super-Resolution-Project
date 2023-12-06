@@ -173,10 +173,6 @@ class Experiment():
         # Initialize history
         self.history = []
 
-        #initialize tensorboard writer
-        self.writer = SummaryWriter(self.output_dir)
-        self.writer.add_graph(self.net, self.x_tensorboard.to(self.device))
-
         self.criterion = criterion
 
         # Define checkpoint paths
@@ -337,6 +333,7 @@ class Experiment():
                 server without display, ``plot`` can be used to show statistics
                 on ``stdout`` or save statistics in a log file. (default: None)
         """
+
         self.net.train()
 
         if self.stats_manager is not None:
@@ -345,6 +342,13 @@ class Experiment():
 
         self.start_epoch = self.epoch
         self.goal_epoch = num_epochs
+
+        if self.start_epoch < self.goal_epoch:
+            #initialize tensorboard writer
+            self.writer = SummaryWriter(self.output_dir)
+            self.writer.add_graph(self.net, self.x_tensorboard.to(self.device))
+
+
         print("Start/Continue training from epoch {}".format(self.start_epoch))
         
         if plot is not None:

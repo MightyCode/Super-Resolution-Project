@@ -4,7 +4,9 @@ import argparse
 import platform
 import copy
 
+from src.ImageTool import ImageTool
 from src.PatchImageTool import PatchImageTool
+
 from src.PytorchUtil import PytorchUtil as torchUtil
 from src.CarlaDataset import CarlaDatasetPatch, CarlaDataset
 
@@ -30,7 +32,7 @@ import skimage.metrics as metrics
 # Can take an option -nf to not save the result in a file
 def create_arg_parse():
     parser = argparse.ArgumentParser(description='Test the MEGA project')
-    parser.add_argument('-p', '--path', type=str, default="resources/default_config.json", help='path to the config file')
+    parser.add_argument('-p', '--path', type=str, help='path to the config file')
     parser.add_argument('-r', '--reset', action='store_true', help='reset the config file')
     parser.add_argument('-nv', '--no-verbose', action='store_true', help='not verbose the program')
     parser.add_argument('-nf', '--no-file', action='store_true', help='not save the result in a file')
@@ -159,17 +161,25 @@ def get_dataset(dataset_name: str, upscale_factor: float, patch_size: int):
         raise Exception("The dataset name is not correct")
 
 # Return the array of the metrics
-def compute_metrics(dataset, method, upscale_factor, model, device):
-    image_size = (dataset[0][1].shape[1], dataset[0][1].shape[2])
+def compute_metrics(dataloader, method, model, device):
+    dataset = dataloader.dataset
 
     if method["method"] == "patch":
-        return PatchImageTool.compute_metrics_dataset(model, (image_size[0], image_size[1]), dataset, len(dataset), device, method["patchSize"])
+        return PatchImageTool.compute_metrics_dataset_batched(
+                        model, 
+                        dataset.high_res_size, 
+                        dataset, len(dataset), 
+                        device, method["batchSize"], verbose=True)
     elif method["method"] == "image":
-        return [], []
+        return ImageTool.compute_metrics_dataset(model, dataloader, device, verbose=True)
     else:
         raise Exception("The method name is not correct")
     
-def compute_metrics_alternative_method(dataset, dataloader, method, altertive_method, upscale_factor, device, verbose=False):
+
+    
+def compute_metrics_alternative_method(dataloader, method, altertive_method, device, verbose=False):
+    dataset = dataloader.dataset
+
     psnr = np.zeros(len(dataset))
     ssim = np.zeros(len(dataset))
 
@@ -207,7 +217,7 @@ def compute_metrics_alternative_method(dataset, dataloader, method, altertive_me
 
 if __name__ == "__main__":
     resources_path = "resources/"
-    default_path = resources_path + "default_config.json"
+    default_file = resources_path + "default_config.json"
 
     results_path = "results/"
 
@@ -221,25 +231,26 @@ if __name__ == "__main__":
             print(*args, **kwargs)
 
     # Check if the path has been given as argument
+    print(prog_args.path)
     if prog_args.path:
-        path = resources_path + prog_args.path
-        printf("* Using config file at \n\t- {}\n".format(path))
+        config_path = resources_path + prog_args.path
+        printf("* Using config file at \n\t- {}\n".format(config_path))
     else:
-        path = default_path
-        printf("* Using default config file at\n\t- {}\n".format(path))
+        config_path = default_file
+        printf("* Using default config file at\n\t- {}\n".format(config_path))
     
     # Check if should erase the config file
     if prog_args.reset:
-        printf("* Erasing config file in order to create new one \n\t- {}\n".format(path))
-        if os.path.exists(path):
-            os.remove(path)
+        printf("* Erasing config file in order to create new one \n\t- {}\n".format(config_path))
+        if os.path.exists(config_path):
+            os.remove(config_path)
 
-    if not os.path.exists(path) or prog_args.reset:
-        with open(path, 'w') as f:
-            printf("* Creating new config file at \n\t- {}\n".format(path))
+    if not os.path.exists(config_path) or prog_args.reset:
+        with open(config_path, 'w') as f:
+            printf("* Creating new config file at \n\t- {}\n".format(config_path))
             json.dump(create_test_config(), f, indent=4)
     
-    config = json.load(open(path))
+    config = json.load(open(config_path))
 
     result = {"entries" : []}
     result_full = {"entries" : []}
@@ -276,14 +287,17 @@ if __name__ == "__main__":
 
                 # create an enumarate to get batches, use torch.utils.data.DataLoader
                 dataloader = data.DataLoader(dataset, batch_size=method["batchSize"], shuffle=False)
+
+                batch_size = dataloader.batch_size
                 
                 # not usefull if not image
                 if method["method"].lower() == "image":
                     for alternative_method in config["alternativeMethods"]:
                         printf("**** * Using alternative method : {}".format(alternative_method))
 
-                        psnr, ssim = compute_metrics_alternative_method(dataset, dataloader,
-                                                                        method, alternative_method, upscaleFactor, torchDevice, verbose=True)
+                        psnr, ssim = compute_metrics_alternative_method(dataloader,
+                                                                        method, alternative_method, 
+                                                                        torchDevice, verbose=True)
 
                         # Show mean, var, min, max
                         printf("-> Mean PSNR : {}, var : {}, min : {}, max : {}".format(np.mean(psnr), np.var(psnr), np.min(psnr), np.max(psnr)))
@@ -324,8 +338,8 @@ if __name__ == "__main__":
                                 json.dump(result_full, f, indent=4)
 
                 print ("**** * Using model : {}".format(config["model"]))
-                """model = create_model(config["model"], config["modelWeights"], config["modelHyperparameters"], 
+                model = create_model(config["model"], config["modelWeights"], config["modelHyperparameters"], 
                                     upscaleFactor, torchDevice)
                 
-                psnr, ssim = compute_metrics(config, dataset, method, model, torchDevice)"""
+                psnr, ssim = compute_metrics(dataloader, method, model, torchDevice)
     

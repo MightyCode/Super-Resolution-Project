@@ -189,7 +189,7 @@ class PatchImageTool:
 
 
     @staticmethod
-    def compute_metrics_dataset(model, dataset, sub_dataset_size, image_size, device, patch_size=32):
+    def compute_metrics_dataset(model, dataset, sub_dataset_size, image_size, device, patch_size=32, verbose=False):
         psnr = np.zeros(sub_dataset_size)
         ssim = np.zeros(sub_dataset_size)
 
@@ -210,14 +210,14 @@ class PatchImageTool:
             psnr[i] = metrics.peak_signal_noise_ratio(high_res_np, pred_high_res_np)
             ssim[i] = metrics.structural_similarity(high_res_np, pred_high_res_np, win_size=7, data_range=1, multichannel=True, channel_axis=2)
 
-            if i % (sub_dataset_size // 10) == 0:
+            if verbose and i % (sub_dataset_size // 100) == 0:
                 print("Current index", i, "PSNR", psnr[i], "SSIM", ssim[i])
 
         return psnr, ssim
 
 
     @staticmethod
-    def compute_metrics_dataset_batched(model, image_size, dataset, sub_dataset_size, device, batch_size=2048):
+    def compute_metrics_dataset_batched(model, image_size, dataset, sub_dataset_size, device, batch_size=2048, verbose=False):
         psnr = np.zeros(sub_dataset_size)
         ssim = np.zeros(sub_dataset_size)
 
@@ -249,5 +249,8 @@ class PatchImageTool:
 
                 psnr[i + j] = metrics.peak_signal_noise_ratio(high_res_np, pred_high_res_np)
                 ssim[i + j] = metrics.structural_similarity(high_res_np, pred_high_res_np, win_size=7, data_range=1, multichannel=True, channel_axis=2)
+
+                if verbose and (i + j) % (sub_dataset_size // 100) == 0:
+                    print("Current index", i + j, "PSNR", psnr[i + j], "SSIM", ssim[i + j])
 
         return psnr, ssim
