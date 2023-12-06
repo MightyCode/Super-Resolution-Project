@@ -1,5 +1,6 @@
 from torch import nn, concat
 from torchvision.transforms.v2 import Resize
+from torchvision import transforms
 
 class UpscaleNN(nn.Module):
 	def __init__(self, super_res_factor=2) -> None:
@@ -30,7 +31,7 @@ class UpscaleNN(nn.Module):
 		else:
 			_, _, h, w = image.shape
 
-		return Resize((h * self.super_res_factor, w * self.super_res_factor), antialias=True)(image)
+		return Resize((h * self.super_res_factor, w * self.super_res_factor), interpolation=transforms.InterpolationMode.BICUBIC, antialias=True)(image)
 
 	def forward(self, X):
 		X_2 = self.upscale_image(X)
@@ -67,17 +68,18 @@ class UpscaleResidualNN(UpscaleNN):
 		)
 		self.decod1 = nn.Sequential(
 			nn.ConvTranspose2d(64, 32, 2, 2),
-			nn.BatchNorm2d(32)
+			nn.BatchNorm2d(32),
+			nn.ReLU(),
 		)
 		self.decod2 = nn.Sequential(
 			self.DoubleConv2d(64, 32),
 			nn.ConvTranspose2d(32, 16, 2, 2),
-			nn.BatchNorm2d(16)
+			nn.BatchNorm2d(16),
+			nn.ReLU(),
 		)
 		self.decod3 = nn.Sequential(
 			self.DoubleConv2d(32, 16),
 			nn.Conv2d(16, 3, 1),
-			nn.BatchNorm2d(3)
 		)
 
 	
