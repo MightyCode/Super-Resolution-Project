@@ -4,10 +4,8 @@ import os
 from typing import Any
 import gdown
 import zipfile
-from sklearn.model_selection import train_test_split
 import json
 from torch.utils.data import Dataset
-from PIL import Image
 import cv2
 import numpy as np
 import math
@@ -40,6 +38,8 @@ class CarlaDataset(Dataset):
         temp = low_res.split("x")
         self.low_res_size = (int(temp[0]), int(temp[1]))
 
+        self.upscale_factor = int(self.high_res.split("x")[0]) / int(self.low_res.split("x")[0])
+
         self.transforms = transforms
         self.dataset_link = self.get_link(high_res)
 
@@ -50,20 +50,21 @@ class CarlaDataset(Dataset):
         self.chosen_indices = None
         
         self.verbose = verbose
+        
+        if self.verbose:
+            self.print("Check for download and resize ...")
 
-        if self.look_for_dataset():
-            self.images = os.listdir(self.high_res_path)
-            
-            self.print("Dataset already present")
-
-            return
-
-        if download:
+        if download and not os.path.exists(self.high_res_path):
             self.download_dataset(self.dataset_link, self.high_res)
-    
-        self.resize_dataset(high_res, low_res)
-        self.split_dataset()
-                
+            self.split_high_res_dataset()
+
+            if self.verbose:
+                print("High dataset not present, downloading it ...")
+
+        if not os.path.exists(self.low_res_path):
+            print("Low dataset not present, resizing it ...")
+            self.resize_dataset(os.path.join(self.split, high_res), os.path.join(self.split, low_res))
+                    
         self.images = os.listdir(self.high_res_path)
 
     def get_link(self, res:str):
@@ -79,7 +80,7 @@ class CarlaDataset(Dataset):
         return cv2.imread(path)
             
     def look_for_dataset(self) -> bool:
-        return os.path.exists(os.path.join(self.resources_folder, self.train)) or os.path.exists(os.path.join(self.resources_folder, self.test))
+        return 
 
     def unzip_file(self, file_path: str, extract_path: str):
         with zipfile.ZipFile(file_path, 'r') as zip_ref:
@@ -88,64 +89,59 @@ class CarlaDataset(Dataset):
     def download_dataset(self, url: str, dest: str):
         folder_path = os.path.join(self.resources_folder, dest)
         zip_path = folder_path + ".zip"
+
         if os.path.exists(folder_path):
             self.print(f"Dataset already downloaded at {folder_path}")
             return
+        
         gdown.download(url, zip_path, quiet=False)
+
         self.print(f"Extracting to {folder_path} ...")
         self.unzip_file(zip_path, folder_path)
+        
         os.remove(zip_path)
+        
         self.print("Done!")
 
     def resize_dataset(self, source:str, dest:str) -> None:
-        source_folder = os.path.join(self.resources_folder, source)
-        dest_folder = os.path.join(self.resources_folder, dest)
-        if os.path.exists(dest_folder):
-            self.print("Dataset already resized")
-            return
-        os.mkdir(dest_folder)
-        destx, desty = dest.split("x")
-        self.print("Resizing images ...")
+        dir_source = os.path.join(self.resources_folder, source)
+        dir_dest = os.path.join(self.resources_folder, dest)
 
-        for img in os.listdir(source_folder):
-            source_img = cv2.imread(os.path.join(source_folder, img))
-            try:
-                dest_img = cv2.resize(source_img,(int(destx), int(desty)))
-                dest_img_path = os.path.join(dest_folder, img)
-                cv2.imwrite(dest_img_path, dest_img)
-            except:
-                self.print(f"Broken image, skipping it ({img})")
-                os.remove(os.path.join(source_folder, img))
-        assert len(os.listdir(source_folder)) == len(os.listdir(dest_folder))
+        if not os.path.exists(dir_dest):
+            os.makedirs(dir_dest)
+
+        images = os.listdir(dir_source)
+
+        self.print("Resizing images...")
+        for img in images:
+            source_img = os.path.join(dir_source, img)
+            dest_img = os.path.join(dir_dest, img)
+            self.resize_image(source_img, dest_img)
         self.print("Done!")
 
-    def split_dataset(self) -> None:
-        dir_train_high = os.path.join(self.resources_folder, self.train, self.high_res)
-        dir_train_low = os.path.join(self.resources_folder, self.train, self.low_res)
-        dir_test_high = os.path.join(self.resources_folder, self.test, self.high_res)
-        dir_test_low = os.path.join(self.resources_folder, self.test, self.low_res)
+    def resize_image(self, source:str, dest:str) -> None:
+        img = self.open_image(source)
+        img = cv2.resize(img, self.low_res_size)
+        cv2.imwrite(dest, img)
 
-        if os.path.exists(dir_train_high):
-            self.print("Dataset already splitted")
-            return
+    def split_high_res_dataset(self) -> None:
+        dir_train_high = os.path.join(self.resources_folder, self.train, self.high_res)
+        dir_test_high = os.path.join(self.resources_folder, self.test, self.high_res)
+
+        if not os.path.exists(dir_train_high):
+            os.makedirs(dir_train_high)
         
-        os.makedirs(dir_train_high)
-        os.makedirs(dir_train_low)
-        os.makedirs(dir_test_high)
-        os.makedirs(dir_test_low)
+        if not os.path.exists(dir_test_high):
+            os.makedirs(dir_test_high)
 
         dir_high = os.path.join(self.resources_folder, self.high_res)
-        dir_low = os.path.join(self.resources_folder, self.low_res)
         images = os.listdir(dir_high)
 
         self.print("Moving images...")
         self._move_images(images[:int(0.8*len(images))], dir_high, dir_train_high)
-        self._move_images(images[:int(0.8*len(images))], dir_low, dir_train_low)
         self._move_images(images[int(0.8*len(images)):], dir_high, dir_test_high)
-        self._move_images(images[int(0.8*len(images)):], dir_low, dir_test_low)
 
         self._remove_folder(dir_high)
-        self._remove_folder(dir_low)
         self.print("Done!")
 
     def _move_images(self, images:list, source:str, dest:str) -> None:

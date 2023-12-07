@@ -31,7 +31,10 @@ class UpscaleNN(nn.Module):
 		else:
 			_, _, h, w = image.shape
 
-		return Resize((h * self.super_res_factor, w * self.super_res_factor), interpolation=transforms.InterpolationMode.BICUBIC, antialias=True)(image)
+		new_width = int(w * self.super_res_factor)
+		new_height = int(h * self.super_res_factor)
+
+		return Resize((new_height, new_width), interpolation=transforms.InterpolationMode.BICUBIC, antialias=True)(image)
 
 	def forward(self, X):
 		X_2 = self.upscale_image(X)
@@ -95,4 +98,5 @@ class UpscaleResidualNN(UpscaleNN):
 		result = self.decod1(X_4)
 		result = self.decod2(concat((X_2,result), dim = 1))
 		result = self.decod3(concat((X_1,result), dim = 1))
+		
 		return (result + X_U).clamp(0,1)

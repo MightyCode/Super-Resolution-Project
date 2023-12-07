@@ -158,7 +158,6 @@ class Experiment():
         if train_set is not None and batch_size is not None:
             self.train_loader = td.DataLoader(train_set, batch_size=batch_size, shuffle=True,
                                         drop_last=True)
-            self.x_tensorboard, self.d_tensorboard = next(iter(self.train_loader))
 
         if val_set is not None and batch_size is not None:
             self.val_loader = td.DataLoader(val_set, batch_size=batch_size, shuffle=False,
@@ -345,6 +344,9 @@ class Experiment():
 
         if self.start_epoch < self.goal_epoch:
             #initialize tensorboard writer
+
+            self.x_tensorboard, self.d_tensorboard = next(iter(self.train_loader))
+        
             self.writer = SummaryWriter(self.output_dir)
             self.writer.add_graph(self.net, self.x_tensorboard.to(self.device))
 

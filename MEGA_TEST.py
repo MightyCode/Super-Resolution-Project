@@ -53,17 +53,18 @@ def create_test_config() -> dict:
             "learningRate" : 0.001,
         },
         "dataset" : ["train", "test"],
-        "upscaleFactors" : [2],
+        "upscaleFactors" : [
+            1.5, 2, 3, 4, 6, 8],
         "alternativeMethods" : ["bilinear", "bicubic", "nearest"],
         "upscalingMethods" : [
             {
                 "method" : "patch",
                 "patchSize" : 32,
-                "batchSize" : 32
+                "batchSize" : 2048
             },
             { 
                 "method" : "image",
-                "batchSize" : 64
+                "batchSize" : 3
             }
         ]
     }
@@ -143,20 +144,20 @@ def get_dataset(dataset_name: str, upscale_factor: float, patch_size: int):
 
     main_resolution = (1920, 1080)
     main_res_str = "{}x{}".format(main_resolution[0], main_resolution[1])
-    low_resolution = (main_resolution[0] // upscale_factor, main_resolution[1] // upscale_factor)
+    low_resolution = (int(main_resolution[0] / upscale_factor), int(main_resolution[1] / upscale_factor))
     low_res_str = "{}x{}".format(low_resolution[0], low_resolution[1])
 
     if dataset_name.lower() == "train":
         if patch_size is None:
-            return CarlaDataset(main_res_str, low_res_str, "train", transforms=common_transform, download=True, verbose=False)
+            return CarlaDataset(main_res_str, low_res_str, "train", transforms=common_transform, download=True, verbose=True)
         
-        return CarlaDatasetPatch(main_res_str, low_res_str, "train", transforms=common_transform, download=True, patch_size=patch_size, verbose=False)
+        return CarlaDatasetPatch(main_res_str, low_res_str, "train", transforms=common_transform, download=True, patch_size=patch_size, verbose=True)
         
     elif dataset_name.lower() == "test":
         if patch_size is None:
-            return CarlaDataset(main_res_str, low_res_str, "test", transforms=common_transform, download=True, verbose=False)
+            return CarlaDataset(main_res_str, low_res_str, "test", transforms=common_transform, download=True, verbose=True)
         
-        return CarlaDatasetPatch(main_res_str, low_res_str, "test", transforms=common_transform, download=True, patch_size=patch_size, verbose=False)
+        return CarlaDatasetPatch(main_res_str, low_res_str, "test", transforms=common_transform, download=True, patch_size=patch_size, verbose=True)
     else:
         raise Exception("The dataset name is not correct")
 
@@ -168,7 +169,7 @@ def compute_metrics(dataloader, method, model, device):
         return PatchImageTool.compute_metrics_dataset_batched(
                         model, 
                         dataset.high_res_size, 
-                        dataset, len(dataset), 
+                        dataset, len(dataset) // dataset.get_number_patch_per_image(), 
                         device, method["batchSize"], verbose=True)
     elif method["method"] == "image":
         return ImageTool.compute_metrics_dataset(model, dataloader, device, verbose=True)
@@ -342,4 +343,42 @@ if __name__ == "__main__":
                                     upscaleFactor, torchDevice)
                 
                 psnr, ssim = compute_metrics(dataloader, method, model, torchDevice)
+
+                 # Show mean, var, min, max
+                printf("-> Mean PSNR : {}, var : {}, min : {}, max : {}".format(np.mean(psnr), np.var(psnr), np.min(psnr), np.max(psnr)))
+                printf("-> Mean SSIM : {}, var : {}, min : {}, max : {}".format(np.mean(ssim), np.var(ssim), np.min(ssim), np.max(ssim)))
+
+                # Add the result to result dict
+                if not prog_args.no_file:
+                    entry = {
+                        "dataset" : datasetName,
+                        "upscaleFactor" : upscaleFactor,
+                        "method" : method,
+                        "model" : config["model"],
+                        "psnr" : {
+                            "mean" : np.mean(psnr),
+                            "var" : np.var(psnr),
+                            "min" : np.min(psnr),
+                            "max" : np.max(psnr)
+                        },
+                        "ssim" : {
+                            "mean" : np.mean(ssim),
+                            "var" : np.var(ssim),
+                            "min" : np.min(ssim),
+                            "max" : np.max(ssim)
+                        }
+                    }
+
+                    entry_full = copy.deepcopy(entry)
+                    entry_full["psnr"]["values"] = psnr.tolist()
+                    entry_full["ssim"]["values"] = ssim.tolist()
+
+                    result["entries"].append(entry)
+                    result_full["entries"].append(entry_full)
+
+                    with open(result_file_path + ".json", 'w') as f:
+                        json.dump(result, f, indent=4)
+
+                    with open(result_file_path + "_full.json", 'w') as f:
+                        json.dump(result_full, f, indent=4)
     
