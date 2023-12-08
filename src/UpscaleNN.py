@@ -34,7 +34,8 @@ class UpscaleNN(nn.Module):
 		new_width = int(w * self.super_res_factor)
 		new_height = int(h * self.super_res_factor)
 
-		return Resize((new_height, new_width), interpolation=transforms.InterpolationMode.BICUBIC, antialias=True)(image)
+		return Resize((new_height, new_width), interpolation=transforms.InterpolationMode.BICUBIC, 
+				antialias=True)(image)
 
 	def forward(self, X):
 		X_2 = self.upscale_image(X)

@@ -1,6 +1,9 @@
 import torch
 import cv2
 import numpy as np
+from torchvision import transforms
+from torchvision.transforms.v2 import Resize
+
 
 class PytorchUtil:
     @staticmethod
@@ -21,3 +24,9 @@ class PytorchUtil:
         vmax = image.max()
 
         return (image - vmin) / (vmax - vmin)
+
+    def resize_tensor(tensor, size, interpolation=transforms.InterpolationMode.BICUBIC):
+        return Resize(size, interpolation=interpolation, antialias=True)(tensor).clamp(0, 1)
+
+    def resize_tensor_to_numpy(tensor, size, interpolation=transforms.InterpolationMode.BICUBIC):
+        return PytorchUtil.tensor_to_numpy(PytorchUtil.resize_tensor(tensor, size, interpolation))

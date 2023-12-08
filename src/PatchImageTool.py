@@ -66,6 +66,8 @@ class PatchImageTool:
         num_patch_width = math.ceil(image_size[0] / upscale_factor / patch_size)
         num_patch_height = math.ceil(image_size[1] / upscale_factor / patch_size)
         num_patches = num_patch_width * num_patch_height
+
+        upscale_patch_size = int(patch_size * upscale_factor)
         
         batch_size = 1024
 
@@ -91,19 +93,19 @@ class PatchImageTool:
                 patch_index = i * num_patch_width + j
                 patch = computed_patch[patch_index]
                 
-                image_x_start = j * patch_size * upscale_factor
-                image_x_end = (j + 1) * patch_size * upscale_factor
+                image_x_start = j * upscale_patch_size
+                image_x_end = (j + 1) * upscale_patch_size
 
                 if image_x_end > image_size[0]:
                     image_x_end = image_size[0]
-                    image_x_start = image_size[0] - patch_size * upscale_factor
+                    image_x_start = image_size[0] - upscale_patch_size
 
-                image_y_start = i * patch_size * upscale_factor
-                image_y_end = (i + 1) * patch_size * upscale_factor
+                image_y_start = i * upscale_patch_size
+                image_y_end = (i + 1) * upscale_patch_size
 
                 if image_y_end > image_size[1]:
                     image_y_end = image_size[1]
-                    image_y_start = image_size[1] - patch_size * upscale_factor
+                    image_y_start = image_size[1] - upscale_patch_size
 
                 predicted_image[image_y_start:image_y_end, image_x_start:image_x_end, :] = patch
 
@@ -113,6 +115,8 @@ class PatchImageTool:
     def predict_image_from_dataset_patches(model, image_size, dataset, index, device, patch_size=32) -> torch.Tensor:
                 # Return a list of patch images
         low_res, _ = dataset.get_all_patch_for_image(index)
+
+        print(index, low_res.shape)
 
         return PatchImageTool.predict_image_from_image_patches(
             model, 
