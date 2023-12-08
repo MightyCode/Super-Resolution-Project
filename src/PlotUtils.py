@@ -7,44 +7,60 @@ from src.PytorchUtil import PytorchUtil as torchUtil
 
 class PlotUtils:
     @staticmethod
-    def show_dataset_example(dataset, dataset_name, num_images=1, indices=None, width=15):
-        num_images = max(num_images, len(indices) if indices else 0)
+    def show_high_low_res_images(low_res_images, high_res_images, width=15, name=""):
+        assert len(low_res_images) == len(high_res_images)
+
+        num_images = len(low_res_images)
 
         _, ax = plt.subplots(num_images, 2, figsize=(width, 5 * num_images))
 
         if num_images == 1:
-            if indices:
-                low_res, high_res = dataset[indices[0]]
-                print("Chosen index", indices[0])
-            else:
-                index = np.random.randint(len(dataset))
-                low_res, high_res = dataset[index]
-                print("Chosen index", index)
-
-            ax[0].imshow(torchUtil.tensor_to_image(low_res))
-            ax[0].set_title(dataset_name + " Low resolution")
-            ax[1].imshow(torchUtil.tensor_to_image(high_res))
-            ax[1].set_title(dataset_name + " High resolution")
+            low_res_image = torchUtil.tensor_to_image(low_res_images[0])
+            high_res_image = torchUtil.tensor_to_image(high_res_images[0])
+            
+            ax[0].imshow(low_res_image)
+            ax[0].set_title(name + " Low resolution")
+            ax[1].imshow(high_res_image)
+            ax[1].set_title(name + " High resolution")
 
             plt.show()
             
             return
 
         for i in range(num_images):
+            low_res_image = torchUtil.tensor_to_image(low_res_images[i])
+            high_res_image = torchUtil.tensor_to_image(high_res_images[i])
+            
+            ax[i, 0].imshow(low_res_image)
+            ax[i, 0].set_title(name + " Low resolution (" + str(i) + ")")
+            ax[i, 1].imshow(high_res_image)
+            ax[i, 1].set_title(name + " High resolution (" + str(i) + ")")
+
+        plt.show()
+
+    @staticmethod
+    def show_dataset_example(dataset, dataset_name, num_images=1, indices=None, width=15):
+        low_res_images = []
+        high_res_images = []
+
+        num_images = max(num_images, len(indices) if indices else 0)
+
+        for i in range(num_images):
             if indices:
                 low_res, high_res = dataset[indices[i]]
-                print("Chosen index", indices[i])
+
+                low_res_images.append(low_res)
+                high_res_images.append(high_res)
             else:
                 index = np.random.randint(len(dataset))
                 low_res, high_res = dataset[index]
-                print("Chosen index", index)
+                
+                low_res_images.append(low_res)
+                high_res_images.append(high_res)
 
-            ax[i, 0].imshow(torchUtil.tensor_to_image(low_res))
-            ax[i, 0].set_title(dataset_name + " Low resolution (" + str(i) + ")")
-            ax[i, 1].imshow(torchUtil.tensor_to_image(high_res))
-            ax[i, 1].set_title(dataset_name + " High resolution (" + str(i) + ")")
+            PlotUtils.show_high_low_res_images(low_res_images, high_res_images, 
+                                               width=width, dataset_name=dataset_name)
 
-        plt.show()
 
     # Plot for the the predicted image, low resolution image and high resolution image in first row
     # plot Plot the loss, psnr and ssim curves in the second row
