@@ -532,4 +532,5 @@ if __name__ == "__main__":
 
     print(mod.info())
     print(mod.architecture())
-    print(mod.checkpoint_dict()['Net'].keys())
+    print(mod.get_weight().keys())
+    print(mod)
