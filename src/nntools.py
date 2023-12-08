@@ -9,6 +9,7 @@ import time
 import torch
 import torch.utils.data as td
 from torch.utils.tensorboard import SummaryWriter
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as LPIPS
 import torchvision
 import datetime
 import json
@@ -125,7 +126,7 @@ class Experiment():
     INFO_VERSION = 1.0
 
     def __init__(self, net, train_set, val_set, optimizer, stats_manager, device, criterion,
-                 output_dir=None, batch_size=16, perform_validation_during_training=False):
+                 output_dir=None, batch_size=16, perform_validation_during_training=False, use_lpips_loss=True):
 
         self.net = net
         self.train_set = train_set
@@ -173,6 +174,12 @@ class Experiment():
         self.history = []
 
         self.criterion = criterion
+        
+        if use_lpips_loss:
+            self.lpips = LPIPS(net_type='vgg').to(self.device)
+            self.coef = 1/1000
+        else:
+            self.lpips, self.coef = lambda x,y:0, 0
 
         # Define checkpoint paths
         if output_dir is not None:
@@ -368,7 +375,7 @@ class Experiment():
                 x, d = x.to(self.device), d.to(self.device)
                 self.optimizer.zero_grad()
                 y = self.net.forward(x)
-                loss = self.criterion(y, d)
+                loss = self.criterion(y, d, self.lpips, self.coef)
                 loss.backward()
                 self.optimizer.step()
 
@@ -412,7 +419,7 @@ class Experiment():
                 x, d = x.to(self.device), d.to(self.device)
                 y = self.net.forward(x)
 
-                loss = self.criterion(y, d)
+                loss = self.criterion(y, d, self.lpips, self.coef)
 
                 self.stats_manager.accumulate(loss.item(), x, y, d)
 
