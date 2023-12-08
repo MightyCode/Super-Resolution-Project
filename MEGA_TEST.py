@@ -47,15 +47,32 @@ if not os.path.exists('resources'):
 def create_test_config() -> dict:
     return {
         "resultNameFile" : "result1",
-        "model" : "upscale",
-        "modelWeights" : "results/superresol-upscale",
-        "modelHyperparameters" : {
-            "learningRate" : 0.001,
-        },
+        "models" : [
+            {
+                "name" : "upscale",
+                "type" : "neuralNetwork",
+                "weights" : "results/superresol-upscale",
+                "hyperparameters" : {
+                    "learningRate" : 0.001,
+                },
+            },
+            {
+                "name" : "bilinear",
+                "type" : "alternative",
+            },
+            {
+                "name" : "bicubic",
+                "type" : "alternative",
+            },
+            {
+                "name" : "nearest",
+                "type" : "alternative",
+            }
+        ],
         "dataset" : ["train", "test"],
         "upscaleFactors" : [
-            1.5, 2, 3, 4, 6, 8],
-        "alternativeMethods" : ["bilinear", "bicubic", "nearest"],
+            1.5, 2, 3, 4, 6, 8
+        ],
         "upscalingMethods" : [
             {
                 "method" : "patch",
@@ -216,6 +233,38 @@ def compute_metrics_alternative_method(dataloader, method, altertive_method, dev
 
     return psnr, ssim
 
+
+def save_results(result, result_full, datasetName, upscaleFactor, method, model, metrics):
+    entry = {
+        "dataset" : datasetName,
+        "upscaleFactor" : upscaleFactor,
+        "method" : method,
+        "model" : model
+    }
+
+    for metrics_name, metrics_value in metrics.items():
+        entry[metrics_name] = {
+            "mean" : np.mean(metrics_value),
+            "var" : np.var(metrics_value),
+            "min" : np.min(metrics_value),
+            "max" : np.max(metrics_value),
+        }
+
+    entry_full = copy.deepcopy(entry)
+
+    for metrics_name, metrics_value in metrics.items():
+        entry_full[metrics_name]["values"] = metrics_value.tolist()
+
+    result["entries"].append(entry)
+    result_full["entries"].append(entry_full)
+
+    with open(result_file_path + ".json", 'w') as f:
+        json.dump(result, f, indent=4)
+
+    with open(result_file_path + "_full.json", 'w') as f:
+        json.dump(result_full, f, indent=4)
+
+
 if __name__ == "__main__":
     resources_path = "resources/"
     default_file = resources_path + "default_config.json"
@@ -290,95 +339,33 @@ if __name__ == "__main__":
                 dataloader = data.DataLoader(dataset, batch_size=method["batchSize"], shuffle=False)
 
                 batch_size = dataloader.batch_size
-                
-                # not usefull if not image
-                if method["method"].lower() == "image":
-                    for alternative_method in config["alternativeMethods"]:
-                        printf("**** * Using alternative method : {}".format(alternative_method))
 
-                        psnr, ssim = compute_metrics_alternative_method(dataloader,
-                                                                        method, alternative_method, 
-                                                                        torchDevice, verbose=True)
+                for model in config["models"]:
+                    psnr, ssim = None, None
 
+                    if model["type"] == "alternative":
+                        # not usefull if not image
+                        if  method["method"].lower() == "image":
+                            printf("**** * Using alternative method : {}".format(model["name"]))
+
+                            psnr, ssim = compute_metrics_alternative_method(dataloader,
+                                                                            method, model["name"], 
+                                                                            torchDevice, verbose=True)
+                    else:
+                        print ("**** * Using neural network model : {}".format(model["name"]))
+                        nnModel = create_model(model["name"], model["weights"], model["hyperparameters"], 
+                                            upscaleFactor, torchDevice)
+                        
+                        psnr, ssim = compute_metrics(dataloader, method, nnModel, torchDevice)
+
+                    if psnr is not None and ssim is not None:
                         # Show mean, var, min, max
                         printf("-> Mean PSNR : {}, var : {}, min : {}, max : {}".format(np.mean(psnr), np.var(psnr), np.min(psnr), np.max(psnr)))
                         printf("-> Mean SSIM : {}, var : {}, min : {}, max : {}".format(np.mean(ssim), np.var(ssim), np.min(ssim), np.max(ssim)))
 
                         # Add the result to result dict
                         if not prog_args.no_file:
-                            entry = {
-                                "dataset" : datasetName,
-                                "upscaleFactor" : upscaleFactor,
-                                "method" : method,
-                                "alternativeMethod" : alternative_method,
-                                "psnr" : {
-                                    "mean" : np.mean(psnr),
-                                    "var" : np.var(psnr),
-                                    "min" : np.min(psnr),
-                                    "max" : np.max(psnr)
-                                },
-                                "ssim" : {
-                                    "mean" : np.mean(ssim),
-                                    "var" : np.var(ssim),
-                                    "min" : np.min(ssim),
-                                    "max" : np.max(ssim)
-                                }
-                            }
-
-                            entry_full = copy.deepcopy(entry)
-                            entry_full["psnr"]["values"] = psnr.tolist()
-                            entry_full["ssim"]["values"] = ssim.tolist()
-
-                            result["entries"].append(entry)
-                            result_full["entries"].append(entry_full)
-
-                            with open(result_file_path + ".json", 'w') as f:
-                                json.dump(result, f, indent=4)
-
-                            with open(result_file_path + "_full.json", 'w') as f:
-                                json.dump(result_full, f, indent=4)
-
-                print ("**** * Using model : {}".format(config["model"]))
-                model = create_model(config["model"], config["modelWeights"], config["modelHyperparameters"], 
-                                    upscaleFactor, torchDevice)
-                
-                psnr, ssim = compute_metrics(dataloader, method, model, torchDevice)
-
-                 # Show mean, var, min, max
-                printf("-> Mean PSNR : {}, var : {}, min : {}, max : {}".format(np.mean(psnr), np.var(psnr), np.min(psnr), np.max(psnr)))
-                printf("-> Mean SSIM : {}, var : {}, min : {}, max : {}".format(np.mean(ssim), np.var(ssim), np.min(ssim), np.max(ssim)))
-
-                # Add the result to result dict
-                if not prog_args.no_file:
-                    entry = {
-                        "dataset" : datasetName,
-                        "upscaleFactor" : upscaleFactor,
-                        "method" : method,
-                        "model" : config["model"],
-                        "psnr" : {
-                            "mean" : np.mean(psnr),
-                            "var" : np.var(psnr),
-                            "min" : np.min(psnr),
-                            "max" : np.max(psnr)
-                        },
-                        "ssim" : {
-                            "mean" : np.mean(ssim),
-                            "var" : np.var(ssim),
-                            "min" : np.min(ssim),
-                            "max" : np.max(ssim)
-                        }
-                    }
-
-                    entry_full = copy.deepcopy(entry)
-                    entry_full["psnr"]["values"] = psnr.tolist()
-                    entry_full["ssim"]["values"] = ssim.tolist()
-
-                    result["entries"].append(entry)
-                    result_full["entries"].append(entry_full)
-
-                    with open(result_file_path + ".json", 'w') as f:
-                        json.dump(result, f, indent=4)
-
-                    with open(result_file_path + "_full.json", 'w') as f:
-                        json.dump(result_full, f, indent=4)
-    
+                            save_results(result, result_full, datasetName, upscaleFactor, method, model, {
+                                "psnr" : psnr,
+                                "ssim" : ssim
+                            })
