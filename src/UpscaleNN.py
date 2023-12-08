@@ -46,9 +46,9 @@ class UpscaleNN(nn.Module):
 
 	def DoubleConv2d(self, c_in, c_out, k_size=3):
 		return nn.Sequential(
-			nn.Conv2d(c_in, c_out, k_size, padding=1),
+			nn.Conv2d(c_in, c_out, k_size, padding=1, padding_mode="replicate"),
 			nn.ReLU(),
-			nn.Conv2d(c_out, c_out, k_size, padding=1),
+			nn.Conv2d(c_out, c_out, k_size, padding=1, padding_mode="replicate"),
 			nn.ReLU()
 		)
 	
