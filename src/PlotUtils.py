@@ -59,7 +59,7 @@ class PlotUtils:
                 high_res_images.append(high_res)
 
             PlotUtils.show_high_low_res_images(low_res_images, high_res_images, 
-                                               width=width, dataset_name=dataset_name)
+                                               width=width, name=dataset_name)
 
 
     # Plot for the the predicted image, low resolution image and high resolution image in first row
