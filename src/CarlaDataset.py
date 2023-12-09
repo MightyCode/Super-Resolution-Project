@@ -23,6 +23,7 @@ class CarlaDataset(Dataset):
                  download:bool = False,
                  verbose:bool = True):
         super().__init__()
+        
         self.split = split
         self.resources_folder: str = "resources"
 

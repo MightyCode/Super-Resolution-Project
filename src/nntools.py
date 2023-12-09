@@ -9,6 +9,7 @@ import time
 import torch
 import torch.utils.data as td
 from torch.utils.tensorboard import SummaryWriter
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as LPIPS
 import torchvision
 import datetime
 import json
@@ -125,12 +126,12 @@ class Experiment():
     INFO_VERSION = 1.0
 
     def __init__(self, net, train_set, val_set, optimizer, stats_manager, device, criterion,
-                 output_dir=None, batch_size=16, perform_validation_during_training=False):
+                 output_dir=None, batch_size=16, perform_validation_during_training=False, tensor_board=False, use_lpips_loss=True):
 
         self.net = net
         self.train_set = train_set
         self.val_set = val_set
-
+        self.tensor_board = tensor_board
         if self.train_set is not None:
             self.train_set_len = train_set.__len__()
         else:
@@ -173,6 +174,12 @@ class Experiment():
         self.history = []
 
         self.criterion = criterion
+        
+        if use_lpips_loss:
+            self.lpips = LPIPS(net_type='vgg').to(self.device)
+            self.coef = 1/1000
+        else:
+            self.lpips, self.coef = lambda x,y:0, 0
 
         # Define checkpoint paths
         if output_dir is not None:
@@ -342,7 +349,7 @@ class Experiment():
         self.start_epoch = self.epoch
         self.goal_epoch = num_epochs
 
-        if self.start_epoch < self.goal_epoch:
+        if self.start_epoch < self.goal_epoch and self.tensor_board:
             #initialize tensorboard writer
 
             self.x_tensorboard, self.d_tensorboard = next(iter(self.train_loader))
@@ -368,7 +375,7 @@ class Experiment():
                 x, d = x.to(self.device), d.to(self.device)
                 self.optimizer.zero_grad()
                 y = self.net.forward(x)
-                loss = self.criterion(y, d)
+                loss = self.criterion(y, d, self.lpips, self.coef)
                 loss.backward()
                 self.optimizer.step()
 
@@ -380,10 +387,11 @@ class Experiment():
             else:
                 self.history.append(
                     (self.stats_manager.summarize(), self.evaluate()))
-                
-            self.add_metrics_to_tensorboard()
-            if self.current_epoch % 5 == 0:
-                self.add_image_to_tensorboard()
+            
+            if self.tensor_board:
+                self.add_metrics_to_tensorboard()
+                if self.current_epoch % 5 == 0:
+                    self.add_image_to_tensorboard()
                 
             if self.perform_validation_during_training:
                 print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {} ssim: {}".format(self.epoch, time.time() - s, self.history[-1][0]['loss'], self.history[-1][1]['psnr'], self.history[-1][1]['ssim']))
@@ -412,12 +420,13 @@ class Experiment():
                 x, d = x.to(self.device), d.to(self.device)
                 y = self.net.forward(x)
 
-                loss = self.criterion(y, d)
+                loss = self.criterion(y, d, self.lpips, self.coef)
 
                 self.stats_manager.accumulate(loss.item(), x, y, d)
 
-            if self.current_epoch % 5 == 0:
-                self.add_image_to_tensorboard('val')
+            if self.tensor_board:
+                if self.current_epoch % 5 == 0:
+                    self.add_image_to_tensorboard('val')
 
         self.net.train()
 

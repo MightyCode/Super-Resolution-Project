@@ -34,7 +34,8 @@ class UpscaleNN(nn.Module):
 		new_width = int(w * self.super_res_factor)
 		new_height = int(h * self.super_res_factor)
 
-		return Resize((new_height, new_width), interpolation=transforms.InterpolationMode.BICUBIC, antialias=True)(image)
+		return Resize((new_height, new_width), interpolation=transforms.InterpolationMode.BICUBIC, 
+				antialias=True)(image)
 
 	def forward(self, X):
 		X_2 = self.upscale_image(X)
@@ -46,9 +47,9 @@ class UpscaleNN(nn.Module):
 
 	def DoubleConv2d(self, c_in, c_out, k_size=3):
 		return nn.Sequential(
-			nn.Conv2d(c_in, c_out, k_size, padding=1),
+			nn.Conv2d(c_in, c_out, k_size, padding=1, padding_mode="replicate"),
 			nn.ReLU(),
-			nn.Conv2d(c_out, c_out, k_size, padding=1),
+			nn.Conv2d(c_out, c_out, k_size, padding=1, padding_mode="replicate"),
 			nn.ReLU()
 		)
 	
