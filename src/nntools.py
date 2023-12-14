@@ -83,17 +83,23 @@ class StatsManager():
 
 class Model():
 
-    def __init__(self, net, device='cpu', input_dir=None):
+    def __init__(self, net, device='cpu', output_dir=None):
         self.net = net
         self.device = device
         self.nb_param = sum(p.numel() for p in net.parameters() if p.requires_grad)
-        self.input_dir = input_dir
+        self.output_dir = output_dir
 
-        if input_dir is not None and os.path.isfile(self.input_dir):
-                checkpoint = torch.load(self.input_dir, map_location=self.device)
+        if output_dir is not None and os.path.isfile(self.output_dir):
+                checkpoint = torch.load(self.output_dir, map_location=self.device)
                 self.load_checkpoint_dict(checkpoint)
                 del checkpoint
-        else:
+        elif output_dir is not None and os.path.isdir(self.output_dir):
+            checkpoint_path = os.path.join(self.output_dir, "checkpoint.pth.tar")
+            if os.path.isfile(checkpoint_path):
+                checkpoint = torch.load(checkpoint_path, map_location=self.device)
+                self.load_checkpoint_dict(checkpoint)
+                del checkpoint
+        elif output_dir is not None:
             raise ValueError("Cannot find the weights file.")
         
 
@@ -102,8 +108,9 @@ class Model():
 
 
     def forward(self, X):
-        X = X.to(self.device) 
-        return self.net(X)
+        X = X.to(self.device)
+        with torch.no_grad():
+            return self.net(X)
 
     def info(self):
         """Returns the setting of the experiment."""
@@ -521,6 +528,13 @@ class Trainer(Model):
         self.writer.add_image('Image/{}'.format(mode), grid, self.current_epoch)
 
 
+def Experiment(net, train_set, val_set, optimizer, stats_manager, device, criterion,
+                output_dir=None, batch_size=16, perform_validation_during_training=False, tensor_board=False):
+    print("WARNING /!\ Class experiment is deprecated. Please use class Trainer instead.")
+    exp = Trainer(net, train_set, val_set, optimizer, stats_manager, device, criterion,
+                output_dir, batch_size, perform_validation_during_training, tensor_board)
+    return exp
+
 
 if __name__ == "__main__":
 
@@ -528,7 +542,7 @@ if __name__ == "__main__":
 
     up = UpscaleNN()
 
-    mod = Model(up, input_dir="blabla2/checkpoint.pth.tar")
+    mod = Model(up, output_dir="results/smallbatchexperiment-upscale")
 
     print(mod.info())
     print(mod.architecture())
