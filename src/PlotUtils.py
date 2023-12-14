@@ -66,12 +66,6 @@ class PlotUtils:
     # plot Plot the loss, psnr and ssim curves in the second row
     @staticmethod
     def plot_images_and_metrics(exp, axes, dataset, index, device): 
-        ##Only to use when perform_validation_during_training == True
-        low_res, high_res = dataset[index]
-
-        with torch.no_grad():
-            predicted_res = exp.net(low_res.to(device))[0]
-
         axes[0][0].clear()
         axes[0][1].clear()
         axes[0][2].clear()
@@ -79,14 +73,19 @@ class PlotUtils:
         axes[1][1].clear()
         axes[1][2].clear()
 
-        low_res_image = torchUtil.tensor_to_image(low_res)
-        high_res_image = torchUtil.tensor_to_image(high_res)
-        predicted_res_image = torchUtil.tensor_to_image(predicted_res)
+        ##Only to use when perform_validation_during_training == True
+        low_res, high_res = dataset[index]
+
+        with torch.no_grad():
+            predicted_res = exp.net(low_res.to(device))[0]
+
+            low_res_image = torchUtil.tensor_to_image(low_res)
+            high_res_image = torchUtil.tensor_to_image(high_res)
+            predicted_res_image = torchUtil.tensor_to_image(predicted_res)
 
         axes[0][0].set_title(f'Low res: {low_res_image.shape}')
         axes[0][1].set_title(f'High res: {high_res_image.shape}')
         axes[0][2].set_title(f'Predicted res: {predicted_res_image.shape}')
-
 
         axes[0][0].imshow(low_res_image)
         axes[0][1].imshow(high_res_image)
@@ -118,34 +117,35 @@ class PlotUtils:
         _, axes = plt.subplots(num_images, 3, figsize=(15, 5 * num_images))
 
         if num_images == 1:
+            axes[0].clear()
+            axes[1].clear()
+            axes[2].clear()
+
             if indices:
-                low_res, _ = dataset[indices[0]]
+                low_res, high_res = dataset[indices[0]]
                 print("Chosen index", indices[0])
             else:
                 index = np.random.randint(len(dataset))
-                low_res, _ = dataset[index]
+                low_res, high_res = dataset[index]
                 print("Chosen index", index)
 
             with torch.no_grad():
-                predicted_torch = model.net(low_res.to(device))[0]
+                predicted_res = model.net(low_res.to(device))[0]
 
-            predicted_res = torchUtil.tensor_to_numpy(predicted_torch)
-                        
-            bicubic_image = torchUtil.resize_tensor_to_numpy(low_res, (predicted_res.shape[0], predicted_res.shape[1]))
-            subtraction_image = torchUtil.norm_numpy_image(predicted_res - bicubic_image)
+                low_res_image = torchUtil.tensor_to_image(low_res)
+                high_res_image = torchUtil.tensor_to_image(high_res)
+                predicted_res_image = torchUtil.tensor_to_image(predicted_res)
 
-            print(subtraction_image.mean(), subtraction_image.std())
+            axes[0].set_title(f'Low res: {low_res_image.shape}')
+            axes[1].set_title(f'High res: {high_res_image.shape}')
+            axes[2].set_title(f'Predicted res: {predicted_res_image.shape}')
 
-            axes[0].set_title(f'Predicted res: {predicted_res.shape}')
-            axes[1].set_title(f'Bicubic res: {bicubic_image.shape}')
-            axes[2].set_title(f'Substraction res: {subtraction_image.shape}')
-
-            axes[0].imshow(torchUtil.numpy_to_image(predicted_res), vmin=0, vmax=1)
-            axes[1].imshow(torchUtil.numpy_to_image(bicubic_image), vmin=0, vmax=1)
-            axes[2].imshow(torchUtil.numpy_to_image(subtraction_image), vmin=subtraction_image.min(), vmax=subtraction_image.max())  
-
+            axes[0].imshow(low_res_image)
+            axes[1].imshow(high_res_image)
+            axes[2].imshow(predicted_res_image)
+        
             plt.show()
-            
+
             return
 
         for i in range(num_images):
@@ -160,9 +160,9 @@ class PlotUtils:
             with torch.no_grad():
                 predicted_res = model.net(low_res.to(device))[0]
 
-            low_res_image = torchUtil.tensor_to_image(low_res)
-            high_res_image = torchUtil.tensor_to_image(high_res)
-            predicted_res_image = torchUtil.numpy_to_image(torchUtil.tensor_to_numpy(predicted_res))
+                low_res_image = torchUtil.tensor_to_image(low_res)
+                high_res_image = torchUtil.tensor_to_image(high_res)
+                predicted_res_image = torchUtil.numpy_to_image(torchUtil.tensor_to_numpy(predicted_res))
 
             axes[i, 0].set_title(f'Low res: {low_res_image.shape}')
             axes[i, 1].set_title(f'High res: {high_res_image.shape}')
@@ -193,13 +193,14 @@ class PlotUtils:
                 low_res, _ = dataset[index]
                 print("Chosen index", index)
 
+
             with torch.no_grad():
                 predicted_torch = model.net(low_res.to(device))[0]
 
-            predicted_res = torchUtil.tensor_to_numpy(predicted_torch)
-                        
-            bicubic_image = torchUtil.resize_tensor_to_numpy(low_res, (predicted_res.shape[0], predicted_res.shape[1]))
-            subtraction_image = torchUtil.norm_numpy_image(predicted_res - bicubic_image)
+                predicted_res = torchUtil.tensor_to_numpy(predicted_torch)
+                            
+                bicubic_image = torchUtil.resize_tensor_to_numpy(low_res, (predicted_res.shape[0], predicted_res.shape[1]))
+                subtraction_image = torchUtil.norm_numpy_image(predicted_res - bicubic_image)
 
             print(subtraction_image.mean(), subtraction_image.std())
 
@@ -207,8 +208,8 @@ class PlotUtils:
             axes[1].set_title(f'Bicubic res: {bicubic_image.shape}')
             axes[2].set_title(f'Substraction res: {subtraction_image.shape}')
 
-            axes[0].imshow(torchUtil.numpy_to_image(predicted_res), vmin=0, vmax=1)
-            axes[1].imshow(torchUtil.numpy_to_image(bicubic_image), vmin=0, vmax=1)
+            axes[0].imshow(torchUtil.numpy_to_image(predicted_res))
+            axes[1].imshow(torchUtil.numpy_to_image(bicubic_image))
             axes[2].imshow(torchUtil.numpy_to_image(subtraction_image), vmin=subtraction_image.min(), vmax=subtraction_image.max())  
         
             plt.show()
@@ -228,10 +229,10 @@ class PlotUtils:
             with torch.no_grad():
                 predicted_torch = model.net(low_res.to(device))[0]
 
-            predicted_res = torchUtil.tensor_to_numpy(predicted_torch)
-                        
-            bicubic_image = torchUtil.resize_tensor_to_numpy(low_res, (predicted_res.shape[0], predicted_res.shape[1]))
-            subtraction_image = torchUtil.norm_numpy_image(predicted_res - bicubic_image)
+                predicted_res = torchUtil.tensor_to_numpy(predicted_torch)
+                            
+                bicubic_image = torchUtil.resize_tensor_to_numpy(low_res, (predicted_res.shape[0], predicted_res.shape[1]))
+                subtraction_image = torchUtil.norm_numpy_image(predicted_res - bicubic_image)
 
             print(subtraction_image.mean(), subtraction_image.std())
 
@@ -253,9 +254,10 @@ class PlotUtils:
         _, axes = plt.subplots(len(low_image_tensors), 3, figsize=(30, 5 * len(low_image_tensors)))
 
         if len(low_image_tensors) == 1:
-            low_image = torchUtil.tensor_to_image(low_image_tensors[0])
-            high_image = torchUtil.tensor_to_image(high_image_tensor[0])
-            predicted_image = torchUtil.tensor_to_image(predicted_image_tensor[0])
+            with torch.no_grad():
+                low_image = torchUtil.tensor_to_image(low_image_tensors[0])
+                high_image = torchUtil.tensor_to_image(high_image_tensor[0])
+                predicted_image = torchUtil.tensor_to_image(predicted_image_tensor[0])
             
             axes[0].set_title(f'{name} Low res: {low_image.shape}')
             axes[1].set_title(f'{name} High res: {high_image.shape}')
@@ -270,9 +272,10 @@ class PlotUtils:
             return
 
         for i in range(len(low_image_tensors)):
-            low_image = torchUtil.tensor_to_image(low_image_tensors[i])
-            high_image = torchUtil.tensor_to_image(high_image_tensor[i])
-            predicted_image = torchUtil.tensor_to_image(predicted_image_tensor[i])
+            with torch.no_grad():
+                low_image = torchUtil.tensor_to_image(low_image_tensors[i])
+                high_image = torchUtil.tensor_to_image(high_image_tensor[i])
+                predicted_image = torchUtil.tensor_to_image(predicted_image_tensor[i])
             
             axes[i, 0].set_title(f'{name} Low res: {low_image.shape}')
             axes[i, 1].set_title(f'{name} High res: {high_image.shape}')

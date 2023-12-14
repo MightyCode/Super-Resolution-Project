@@ -217,17 +217,18 @@ class PatchImageTool:
 
             index_image = dataset.get_index_for_image(index_patch)
             
-            _, high_res = dataset.get_full_image(index_image)
-            pred_high_res = PatchImageTool.predict_image_from_dataset_patches(model, image_size, dataset, index_patch, device, patch_size=patch_size)
+            with torch.no_grad():
+                _, high_res = dataset.get_full_image(index_image)
+                pred_high_res = PatchImageTool.predict_image_from_dataset_patches(model, image_size, dataset, index_patch, device, patch_size=patch_size)
 
-            high_res_np = torchUtil.tensor_to_numpy(high_res)
-            pred_high_res_np = torchUtil.tensor_to_numpy(pred_high_res)
+                high_res_np = torchUtil.tensor_to_numpy(high_res)
+                pred_high_res_np = torchUtil.tensor_to_numpy(pred_high_res)
 
-            psnr[i] = metrics.peak_signal_noise_ratio(high_res_np, pred_high_res_np)
-            ssim[i] = metrics.structural_similarity(high_res_np, pred_high_res_np, win_size=7, data_range=1, multichannel=True, channel_axis=2)
+                psnr[i] = metrics.peak_signal_noise_ratio(high_res_np, pred_high_res_np)
+                ssim[i] = metrics.structural_similarity(high_res_np, pred_high_res_np, win_size=7, data_range=1, multichannel=True, channel_axis=2)
 
-            if verbose and i % (sub_dataset_size // 100) == 0:
-                print("Current index", i, "PSNR", psnr[i], "SSIM", ssim[i])
+                if verbose and i % (sub_dataset_size // 100) == 0:
+                    print("Current index", i, "PSNR", psnr[i], "SSIM", ssim[i])
 
         return psnr, ssim
 
@@ -239,7 +240,7 @@ class PatchImageTool:
 
         # array of unique indices
         number_patch_per_image = dataset.get_number_patch_per_image()
-        number_image_per_gen = batch_size // number_patch_per_image
+        number_image_per_gen = math.ceil(batch_size / number_patch_per_image)
         indices_patch = np.zeros(sub_dataset_size, dtype=np.int32)
         indices_image = np.zeros(sub_dataset_size, dtype=np.int32)
 
@@ -253,19 +254,21 @@ class PatchImageTool:
             sub_indices_patch = indices_patch[i:i+number_image_per_gen]
             sub_indices_image = indices_image[i:i+number_image_per_gen]
 
-            predicted_images = PatchImageTool.predict_images_from_dataset_patches(model, image_size, dataset, sub_indices_patch, device, batch_size=batch_size)
+            predicted_images = PatchImageTool.predict_images_from_dataset_patches(model, image_size, dataset, sub_indices_patch, 
+                                                                                  device, batch_size=batch_size)
             for j in range(len(predicted_images)):
                 #print("Do step ", i + j, "out of", subpart_size)
-                _, high_res = dataset.get_full_image(sub_indices_image[j])
-                pred_high_res = predicted_images[j]
+                with torch.no_grad():
+                    _, high_res = dataset.get_full_image(sub_indices_image[j])
+                    pred_high_res = predicted_images[j]
 
-                high_res_np = torchUtil.tensor_to_numpy(high_res)
-                pred_high_res_np = torchUtil.tensor_to_numpy(pred_high_res)
+                    high_res_np = torchUtil.tensor_to_numpy(high_res)
+                    pred_high_res_np = torchUtil.tensor_to_numpy(pred_high_res)
 
-                psnr[i + j] = metrics.peak_signal_noise_ratio(high_res_np, pred_high_res_np)
-                ssim[i + j] = metrics.structural_similarity(high_res_np, pred_high_res_np, win_size=7, data_range=1, multichannel=True, channel_axis=2)
+                    psnr[i + j] = metrics.peak_signal_noise_ratio(high_res_np, pred_high_res_np)
+                    ssim[i + j] = metrics.structural_similarity(high_res_np, pred_high_res_np, win_size=7, data_range=1, multichannel=True, channel_axis=2)
 
-                if verbose and (i + j) % (sub_dataset_size // 20) == 0:
-                    print((i + j) / sub_dataset_size * 100, "% (", (i + j) , ") -> PSNR", psnr[i + j], "SSIM", ssim[i + j])
+                    if verbose and (i + j) % (sub_dataset_size // 20) == 0:
+                        print((i + j) / sub_dataset_size * 100, "% (", (i + j) , ") -> PSNR", psnr[i + j], "SSIM", ssim[i + j])
 
         return psnr, ssim
