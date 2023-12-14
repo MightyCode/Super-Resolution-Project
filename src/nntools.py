@@ -6,6 +6,7 @@ Copyright 2019. Charles Deledalle, Sneha Gupta, Anurag Paul, Inderjot Saggu.
 
 import os
 import time
+from typing import Any
 import torch
 import torch.utils.data as td
 from torch.utils.tensorboard import SummaryWriter
@@ -80,7 +81,74 @@ class StatsManager():
         return self.running_loss / (self.number_update+1e-9)
 
 
-class Experiment():
+
+class Model():
+
+    def __init__(self, net, device='cpu', input_dir=None):
+        self.net = net
+        self.device = device
+        self.nb_param = sum(p.numel() for p in net.parameters() if p.requires_grad)
+        self.input_dir = input_dir
+
+        if input_dir is not None and os.path.isfile(self.input_dir):
+                checkpoint = torch.load(self.input_dir, map_location=self.device)
+                self.load_checkpoint_dict(checkpoint)
+                del checkpoint
+        else:
+            raise ValueError("Cannot find the weights file.")
+        
+
+    def __call__(self, X):
+        return self.forward(X)
+
+
+    def forward(self, X):
+        X = X.to(self.device) 
+        return self.net(X)
+
+    def info(self):
+        """Returns the setting of the experiment."""
+        result = {
+            "NumberParameters": self.nb_param,
+        }
+
+        train_info = {}
+        train_info['DeviceName'] = platform.node()
+        train_info['SocketName'] = socket.gethostname()
+        train_info['CPU'] = get_processor_name()
+        train_info['TorchDevice'] = str(self.device)
+
+        if torch.cuda.is_available():
+            train_info['GPU'] = torch.cuda.get_device_name()
+        train_info['RAM'] = str(round(psutil.virtual_memory().total / (1024.0 **3), 2)) + " GB"
+        train_info['Python'] = sys.version
+
+        return result
+
+    def architecture(self):
+        return "Net({})\n".format(self.net)
+
+    def get_weight(self):
+        return self.net.state_dict()
+
+    def load_checkpoint_dict(self, checkpoint):
+        """Loads the experiment from the input checkpoint."""
+        self.net.load_state_dict(checkpoint['Net'])
+
+    def __repr__(self):
+        """Pretty printer showing the setting of the experiment. This is what
+        is displayed when doing ``print(experiment)``. This is also what is
+        saved in the ``config.txt`` file.
+        """
+        string = ''
+        for key, val in self.info().items():
+            string += '{} : {}\n'.format(key, val)
+
+        return string
+
+
+
+class Trainer(Model):
     """
     A class meant to run a neural network learning experiment.
 
@@ -144,7 +212,7 @@ class Experiment():
 
         # Init for info file
         self.nb_param = sum(p.numel() for p in net.parameters() if p.requires_grad)
-        self.version = Experiment.INFO_VERSION
+        self.version = Trainer.INFO_VERSION
         self.trains = None
         
         self.goal_epoch = 0
@@ -458,4 +526,18 @@ class Experiment():
         grid = torch.cat((d,y), dim=0)
         grid = torchvision.utils.make_grid(grid, nrow=2, padding=2, normalize=True)
         self.writer.add_image('Image/{}'.format(mode), grid, self.current_epoch)
-            
+
+
+
+if __name__ == "__main__":
+
+    from UpscaleNN import UpscaleNN
+
+    up = UpscaleNN()
+
+    mod = Model(up, input_dir="blabla2/checkpoint.pth.tar")
+
+    print(mod.info())
+    print(mod.architecture())
+    print(mod.get_weight().keys())
+    print(mod)
