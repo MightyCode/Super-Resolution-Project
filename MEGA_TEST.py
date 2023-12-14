@@ -95,45 +95,38 @@ def create_model(
         return F.mse_loss(y, d)
 
     # to lower
-    if model_name.lower() == "upscale":
-        r = UpscaleNN(super_res_factor = super_res_factor) 
-        r.to(device)
+    r = None
+    if "upscale" in model_name.lower():
+        print(model_name.lower())
+        if "residual" in model_name.lower() or "resid" in model_name.lower():
+            MODEL_INIT = UpscaleResidualNN
+        else:
+            MODEL_INIT = UpscaleNN
 
-        adam = torch.optim.Adam(r.parameters(), lr=model_hyperparameters["learningRate"])
-
-        exp = nt.Experiment(r, 
-                            None, None, 
-                            adam, None, None, criterion, 
-                            output_dir=model_weights_path)
-
-        return exp
-    elif model_name.lower().replace("-", "") == "upscaleresidual":
-        r = UpscaleResidualNN(super_res_factor=super_res_factor) 
-        r.to(device)
-
-        adam = torch.optim.Adam(r.parameters(), lr=model_hyperparameters["learningRate"])
-        exp = nt.Experiment(r, 
-                            None, None, 
-                            adam, None, None, criterion,
-                            output_dir=model_weights_path)
-
-        return exp
-    elif model_name.lower() == "rdn":
+        r = MODEL_INIT(super_res_factor=super_res_factor, old_version=("old" in model_name.lower())) 
+    elif "rdn" in model_name.lower():
         r = RDN(C=model_hyperparameters["C"], D=model_hyperparameters["D"], 
                 G=model_hyperparameters["G"], G0=model_hyperparameters["G0"], 
                 scaling_factor=super_res_factor, 
                 kernel_size=model_hyperparameters["kernelSize"], 
                 upscaling='shuffle', weights=None)
         
-        adam = torch.optim.Adam(r.parameters(), lr=model_hyperparameters["learningRate"])
-        exp = nt.Experiment(r,
-                            None, None,
-                            adam, None, None, criterion,
-                            output_dir=model_weights_path)
-        
-        return exp
-    else:
+    is_lpips_model = "lpips" in model_name.lower()
+    
+    if r is None:
         raise Exception("The model name is not correct")
+    
+    r.to(device)
+
+    adam = torch.optim.Adam(r.parameters(), lr=model_hyperparameters["learningRate"])
+    exp = nt.Experiment(r, 
+                            None, None, 
+                            adam, None, None, criterion,
+                            output_dir=model_weights_path,
+                            tensor_board=False,
+                            use_lpips_loss=is_lpips_model)
+
+    return exp
 
 def get_device():
     device = None
@@ -214,22 +207,23 @@ def compute_metrics_alternative_method(dataloader, method, altertive_method, dev
 
     # get data and idx        
     for i, (low_res_batch, high_res_batch) in enumerate(dataloader):
-        low_res_batch = low_res_batch.to(device)
+        with torch.no_grad():
+            low_res_batch = low_res_batch.to(device)
 
-        index = i * batch_size
-        end = min(index + batch_size, len(dataset))
+            index = i * batch_size
+            end = min(index + batch_size, len(dataset))
 
-        predicted_images = resize_function(low_res_batch)
+            predicted_images = resize_function(low_res_batch)
 
-        for j in range(0, end - index):
-            predicted = torchUtil.tensor_to_numpy(predicted_images[j])
-            high_res = torchUtil.tensor_to_numpy(high_res_batch[j])
-            psnr[j + index] = metrics.peak_signal_noise_ratio(high_res, predicted)
-            ssim[j + index] = metrics.structural_similarity(high_res, predicted, win_size=7, data_range=1, multichannel=True, channel_axis=2)
+            for j in range(0, end - index):
+                predicted = torchUtil.tensor_to_numpy(predicted_images[j])
+                high_res = torchUtil.tensor_to_numpy(high_res_batch[j])
+                psnr[j + index] = metrics.peak_signal_noise_ratio(high_res, predicted)
+                ssim[j + index] = metrics.structural_similarity(high_res, predicted, win_size=7, data_range=1, multichannel=True, channel_axis=2)
 
-        # if verbose and ervery 1 %
-        if verbose and (index) % (len(dataset) // 100) == 0:
-            print("{}%".format(index / (len(dataset) // 100)))
+            # if verbose and ervery 1 %
+            if verbose and (index) % (len(dataset) // 100) == 0:
+                print("{}%".format(index / (len(dataset) // 100)))
 
     return psnr, ssim
 
@@ -317,55 +311,66 @@ if __name__ == "__main__":
         if os.path.exists(result_file_path):
             os.remove(result_file_path)
 
-    torchDevice = get_device()
+    torch_device = get_device()
 
-    printf("* Using device : {}".format(torchDevice))
-    printf("")
+    with torch.no_grad():
+        for model in config["models"]:
+            if model["type"] != "alternative":
+                try:
+                    nn_model = create_model(
+                        model["name"], model["weights"], model["hyperparameters"], 
+                        2, torch_device)
+                except Exception as e:
+                    raise Exception("\n\nThe model {} was not created properly, dataset {} and the upscale factor {}".format(model["name"], dataset_name, upscale_factor)) from e
 
-    for datasetName in config["dataset"]:
-        printf("* * Using dataset : {}".format(datasetName))
 
-        for upscaleFactor in config["upscaleFactors"]:
-            printf("** * Using upscale factor : {}".format(upscaleFactor))
+        printf("* Using device : {}".format(torch_device))
+        printf("")
 
-            for method in config["upscalingMethods"]:
-                printf("*** * Using method : {}".format(method["method"]))
+        for dataset_name in config["dataset"]:
+            printf("* * Using dataset : {}".format(dataset_name))
 
-                patch_size = method["patchSize"] if method["method"].lower() == "patch" else None
+            for upscale_factor in config["upscaleFactors"]:
+                printf("** * Using upscale factor : {}".format(upscale_factor))
 
-                dataset = get_dataset(datasetName, upscaleFactor, patch_size)
+                for method in config["upscalingMethods"]:
+                    printf("*** * Using method : {}".format(method["method"]))
 
-                # create an enumarate to get batches, use torch.utils.data.DataLoader
-                dataloader = data.DataLoader(dataset, batch_size=method["batchSize"], shuffle=False)
+                    patch_size = method["patchSize"] if method["method"].lower() == "patch" else None
 
-                batch_size = dataloader.batch_size
+                    dataset = get_dataset(dataset_name, upscale_factor, patch_size)
 
-                for model in config["models"]:
-                    psnr, ssim = None, None
+                    # create an enumarate to get batches, use torch.utils.data.DataLoader
+                    dataloader = data.DataLoader(dataset, batch_size=method["batchSize"], shuffle=False)
 
-                    if model["type"] == "alternative":
-                        # not usefull if not image
-                        if  method["method"].lower() == "image":
-                            printf("**** * Using alternative method : {}".format(model["name"]))
+                    batch_size = dataloader.batch_size
 
-                            psnr, ssim = compute_metrics_alternative_method(dataloader,
-                                                                            method, model["name"], 
-                                                                            torchDevice, verbose=True)
-                    else:
-                        print ("**** * Using neural network model : {}".format(model["name"]))
-                        nnModel = create_model(model["name"], model["weights"], model["hyperparameters"], 
-                                            upscaleFactor, torchDevice)
-                        
-                        psnr, ssim = compute_metrics(dataloader, method, nnModel, torchDevice)
+                    for model in config["models"]:
+                        psnr, ssim = None, None
 
-                    if psnr is not None and ssim is not None:
-                        # Show mean, var, min, max
-                        printf("-> Mean PSNR : {}, var : {}, min : {}, max : {}".format(np.mean(psnr), np.var(psnr), np.min(psnr), np.max(psnr)))
-                        printf("-> Mean SSIM : {}, var : {}, min : {}, max : {}".format(np.mean(ssim), np.var(ssim), np.min(ssim), np.max(ssim)))
+                        if model["type"] == "alternative":
+                            # not usefull if not image
+                            if  method["method"].lower() == "image":
+                                printf("**** * Using alternative method : {}".format(model["name"]))
 
-                        # Add the result to result dict
-                        if not prog_args.no_file:
-                            save_results(result, result_full, datasetName, upscaleFactor, method, model, {
-                                "psnr" : psnr,
-                                "ssim" : ssim
-                            })
+                                psnr, ssim = compute_metrics_alternative_method(dataloader,
+                                                                                method, model["name"], 
+                                                                                torch_device, verbose=True)
+                        else:
+                            print ("**** * Using neural network model : {}".format(model["name"]))
+                            nn_model = create_model(model["name"], model["weights"], model["hyperparameters"], 
+                                                upscale_factor, torch_device)
+                            
+                            psnr, ssim = compute_metrics(dataloader, method, nn_model, torch_device)
+
+                        if psnr is not None and ssim is not None:
+                            # Show mean, var, min, max
+                            printf("-> Mean PSNR : {}, var : {}, min : {}, max : {}".format(np.mean(psnr), np.var(psnr), np.min(psnr), np.max(psnr)))
+                            printf("-> Mean SSIM : {}, var : {}, min : {}, max : {}".format(np.mean(ssim), np.var(ssim), np.min(ssim), np.max(ssim)))
+
+                            # Add the result to result dict
+                            if not prog_args.no_file:
+                                save_results(result, result_full, dataset_name, upscale_factor, method, model, {
+                                    "psnr" : psnr,
+                                    "ssim" : ssim
+                                })

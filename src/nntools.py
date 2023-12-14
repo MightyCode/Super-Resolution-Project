@@ -198,7 +198,7 @@ class Experiment():
                 with open(self.state_path, 'r') as f:
                     state_file = f.read().strip()
                     inner_state = self.state().strip()
-
+                
                     # Don't take into account the last character of the file, \n    
                     if state_file != inner_state:
                         raise ValueError(
@@ -207,6 +207,8 @@ class Experiment():
                 self.load()
             else:
                 self.save()
+
+        self.net.eval()
 
     @property
     def epoch(self):
@@ -340,7 +342,7 @@ class Experiment():
                 on ``stdout`` or save statistics in a log file. (default: None)
         """
 
-        self.net.train()
+        self.net.eval()
 
         if self.stats_manager is not None:
             self.stats_manager.init()
@@ -371,6 +373,8 @@ class Experiment():
             s = time.time()
             self.stats_manager.init()
 
+            self.net.train()
+
             for x, d in self.train_loader:
                 x, d = x.to(self.device), d.to(self.device)
                 self.optimizer.zero_grad()
@@ -381,7 +385,9 @@ class Experiment():
 
                 with torch.no_grad():
                     self.stats_manager.accumulate(loss.item(), x, y, d)
-                
+        
+            self.net.eval()
+
             if not self.perform_validation_during_training:
                 self.history.append(self.stats_manager.summarize())
             else:
@@ -406,6 +412,7 @@ class Experiment():
                 plot(self)
 
         print("Finish training for {} epochs".format(self.goal_epoch))
+        self.net.eval()
 
     def evaluate(self):
         """Evaluates the experiment, i.e., forward propagates the validation set
@@ -427,8 +434,6 @@ class Experiment():
             if self.tensor_board:
                 if self.current_epoch % 5 == 0:
                     self.add_image_to_tensorboard('val')
-
-        self.net.train()
 
         return self.stats_manager.summarize()
     

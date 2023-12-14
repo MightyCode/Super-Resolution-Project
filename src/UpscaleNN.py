@@ -3,9 +3,11 @@ from torchvision.transforms.v2 import Resize
 from torchvision import transforms
 
 class UpscaleNN(nn.Module):
-	def __init__(self, super_res_factor=2) -> None:
+	def __init__(self, super_res_factor=2, old_version=False) -> None:
 		super().__init__()
 		self.super_res_factor = super_res_factor
+
+		self.old_version = old_version
 
 		self.encoder = nn.Sequential(
 			self.DoubleConv2d(3, 9),
@@ -34,7 +36,10 @@ class UpscaleNN(nn.Module):
 		new_width = int(w * self.super_res_factor)
 		new_height = int(h * self.super_res_factor)
 
-		return Resize((new_height, new_width), interpolation=transforms.InterpolationMode.BICUBIC, 
+		if self.old_version:
+			return Resize((new_height, new_width), interpolation=transforms.InterpolationMode.BILINEAR)(image)
+		else:
+			return Resize((new_height, new_width), interpolation=transforms.InterpolationMode.BICUBIC, 
 				antialias=True)(image)
 
 	def forward(self, X):
@@ -46,16 +51,24 @@ class UpscaleNN(nn.Module):
 		return value.clamp(0, 1)
 
 	def DoubleConv2d(self, c_in, c_out, k_size=3):
-		return nn.Sequential(
-			nn.Conv2d(c_in, c_out, k_size, padding=1, padding_mode="replicate"),
-			nn.ReLU(),
-			nn.Conv2d(c_out, c_out, k_size, padding=1, padding_mode="replicate"),
-			nn.ReLU()
-		)
+		if self.old_version:
+			return nn.Sequential(
+				nn.Conv2d(c_in, c_out, k_size, padding=1),
+				nn.ReLU(),
+				nn.Conv2d(c_out, c_out, k_size, padding=1),
+				nn.ReLU()
+			)
+		else:
+			return nn.Sequential(
+				nn.Conv2d(c_in, c_out, k_size, padding=1, padding_mode="replicate"),
+				nn.ReLU(),
+				nn.Conv2d(c_out, c_out, k_size, padding=1, padding_mode="replicate"),
+				nn.ReLU()
+			)
 	
 class UpscaleResidualNN(UpscaleNN):
-	def __init__(self, super_res_factor=2) -> None:
-		super().__init__(super_res_factor)
+	def __init__(self, super_res_factor=2, old_version=False) -> None:
+		super().__init__(super_res_factor, old_version=old_version)
 		self.super_res_factor = super_res_factor
 		
 		self.encod1 = nn.Sequential(
