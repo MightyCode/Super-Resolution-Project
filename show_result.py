@@ -41,6 +41,17 @@ def sort_label_metric(label_array, metric_array):
 
     return label_array, metric_array
 
+def give_order(metric_array):
+    # Give the position in classement, result array is same size as metric_array
+    result_array = []
+
+    # Sort the metric array
+    sorted_metric_array = sorted(metric_array)
+
+    # For each element in metric_array, find the position in sorted_metric_array
+    for element in metric_array:
+        result_array.append(sorted_metric_array.index(element))
+
 def get_color_name_bar(associated_model, name_separation="-image", interpolation_methods=[]):
     name_color = []
     bar_color = []
@@ -90,7 +101,8 @@ if __name__ == "__main__":
     # Create a list of all the results
     psnr_results = []
     ssim_results = []
-    associated_model = []
+    associated_model_psnr = []
+    associated_model_ssim = []
 
     for entry in data["entries"]:
         if dataset != entry["dataset"] or upscale != str(entry["upscaleFactor"]):
@@ -99,12 +111,13 @@ if __name__ == "__main__":
         psnr_results.append(entry["psnr"]["mean"])
         ssim_results.append(entry["ssim"]["mean"])
 
-        associated_model.append(entry["model"]["name"] + "-" + entry["method"]["method"])
+        associated_model_psnr.append(entry["model"]["name"] + "-" + entry["method"]["method"])
+        associated_model_ssim.append(associated_model_psnr[-1])
 
     if args.order:
-        associated_model, psnr_results = sort_label_metric(associated_model, psnr_results)
+        associated_model_psnr, psnr_results = sort_label_metric(associated_model_psnr, psnr_results)
 
-    name_color, bar_color = get_color_name_bar(associated_model, interpolation_methods=INTERPOLATION_METHODS)
+    name_color, bar_color = get_color_name_bar(associated_model_psnr, interpolation_methods=INTERPOLATION_METHODS)
 
     # Create and show a figure with two subplots of histograms, one at right and one at left
     # Show in y-axis the value of psnr, show in x-axis the associated model name
@@ -115,7 +128,7 @@ if __name__ == "__main__":
                  fontsize=14, fontweight='bold')
 
     # First subplot, color the bar with random colors
-    bars = ax1.bar(associated_model, psnr_results, color=bar_color)
+    bars = ax1.bar(associated_model_psnr, psnr_results, color=bar_color)
 
     for label, color in zip(ax1.get_xticklabels(), name_color):
         label.set_color(color)
@@ -125,12 +138,12 @@ if __name__ == "__main__":
     ax1.set_xlabel("Model names")
 
     if args.order:
-        associated_model, ssim_results = sort_label_metric(associated_model, ssim_results)
+        associated_model_ssim, ssim_results = sort_label_metric(associated_model_ssim, ssim_results)
 
-    name_color, bar_color = get_color_name_bar(associated_model, interpolation_methods=INTERPOLATION_METHODS)
+    name_color, bar_color = get_color_name_bar(associated_model_ssim, interpolation_methods=INTERPOLATION_METHODS)
 
     # Second subplot
-    ax2.bar(associated_model, ssim_results, color=bar_color)
+    ax2.bar(associated_model_ssim, ssim_results, color=bar_color)
     ax2.set_title("SSIM")
     ax2.set_ylabel("SSIM")
     ax2.set_xlabel("Model names")
