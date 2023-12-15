@@ -310,6 +310,115 @@ class CarlaDatasetPatch(CarlaDataset):
         self.print(f'Number of valid low resolution images: {len(os.listdir(dir_test_low)) * self.h * self.w}')
         self.print(f'Number of valid high resolution images: {len(os.listdir(dir_test_high)) * self.h * self.w}')
 
+
+
+class CarlaDatasetMultiplePatch(CarlaDataset):
+    '''This dataset is used to train the model with multiple patchs.
+    You should have 3 input sizes, the high res should be 8_th time higher than the low res 1 and 4_th time higher than the low res 2'''
+    def __init__(self, 
+                 high_res:str = "1920x1080", 
+                 low_res_1:str = "1280x720",
+                 low_res_2:str = "960x540", 
+                 split:str = "train", 
+                 transforms = None, 
+                 download:bool = False,
+                 patch_size=16,
+                 verbose:bool = True):
+        super().__init__(high_res, low_res_1, split, transforms, download, verbose=verbose)
+        self.patch_size_1 = patch_size
+        self.low_res_2 = low_res_2
+        self.low_res_path_2 = os.path.join(self.dir_path, self.low_res_2)
+        #open the first image of the train low res set to get the size of the images
+        I = self.open_image(os.path.join(self.resources_folder, self.train, self.low_res_1,
+                                        os.listdir(os.path.join(self.resources_folder, self.train, self.low_res_1))[0]))  
+        
+        self.low_res_image_size_1 = I.shape[0:2]
+
+        # If the image is not divisible by the patch size, we add a patch to the right and to the bottom
+        self.h = math.ceil(I.shape[0] / self.patch_size_1)
+        self.w = math.ceil(I.shape[1] / self.patch_size_1)
+
+        I = self.open_image(os.path.join(self.resources_folder, self.train, self.low_res_2,
+                                        os.listdir(os.path.join(self.resources_folder, self.train, self.low_res_2))[0]))  
+        
+        self.low_res_image_size_2 = I.shape[0:2]
+
+        self.scale_factor_1 = int(self.high_res.split("x")[0]) // int(self.low_res_1.split("x")[0])
+        self.scale_factor_2 = int(self.low_res_2.split("x")[0]) // int(self.low_res_1.split("x")[0])
+        self.scale_factor_3 = int(self.high_res.split("x")[0]) // int(self.low_res_2.split("x")[0])
+    
+    def get_number_patch_per_image(self):
+        return self.h * self.w
+
+    def __len__(self):
+        if self.chosen_indices is not None:
+            return len(self.chosen_indices)
+        
+        return super().__len__() * self.h * self.w
+
+    def __getitem__(self, index_patch) -> Any:
+        index_patch = self.check_index(index_patch)
+        
+        image_index = index_patch // (self.h * self.w)
+        part_on_image = index_patch % (self.h * self.w)
+
+        image_low_res = self.open_image(os.path.join(self.low_res_path, self.images[image_index]))
+        image_high_res = self.open_image(os.path.join(self.high_res_path, self.images[image_index]))
+
+        if self.transforms is not None:
+            image_low_res = self.transforms(image_low_res)
+            image_high_res = self.transforms(image_high_res)
+
+        patch_low_res = PatchImageTool.get_patch_from_image_index(image_low_res, part_on_image, self.patch_size, w=self.w, h=self.h)
+        patch_high_res = PatchImageTool.get_patch_from_image_index(image_high_res, part_on_image, self.patch_size * self.scale_factor, w=self.w, h=self.h)
+
+        return patch_low_res, patch_high_res
+
+    def get_all_patch_for_image(self, index_patch):
+        image_index = index_patch // (self.h * self.w)
+        image_low_res = self.open_image(os.path.join(self.low_res_path, self.images[image_index]))
+        image_high_res = self.open_image(os.path.join(self.high_res_path, self.images[image_index]))
+
+        if self.transforms is not None:
+            image_low_res = self.transforms(image_low_res)
+            image_high_res = self.transforms(image_high_res)
+
+        patches_low_res = PatchImageTool.get_patchs_from_image(image_low_res, self.patch_size, w=self.w, h=self.h)
+        patches_high_res = PatchImageTool.get_patchs_from_image(image_high_res, self.patch_size * self.scale_factor, w=self.w, h=self.h)
+    
+        return patches_low_res, patches_high_res
+    
+    def get_index_for_image(self, index_patch):
+        index_patch = index_patch // (self.h * self.w)
+
+        if index_patch < 0:
+            index_patch = len(self.images) + index_patch
+
+        return index_patch
+
+    def get_index_start_patch(self, index_patch):
+        index_patch = index_patch // (self.h * self.w)
+
+        return index_patch * (self.h * self.w)
+
+    def get_full_image(self, index):
+        return super().__getitem__(index)
+    
+    def get_low_res_full_image_size(self):
+        return (self.h * self.patch_size, self.w * self.patch_size)
+    
+    def get_info(self):
+        # Display the sizes of the dataset
+        dir_train_high = os.path.join(self.resources_folder, self.train, self.high_res)
+        dir_train_low = os.path.join(self.resources_folder, self.train, self.low_res)
+        dir_test_high = os.path.join(self.resources_folder, self.test, self.high_res)
+        dir_test_low = os.path.join(self.resources_folder, self.test, self.low_res)
+
+        self.print(f'Number of train low resolution images: {len(os.listdir(dir_train_low)) * self.h * self.w}')
+        self.print(f'Number of train high resolution images: {len(os.listdir(dir_train_high)) * self.h * self.w}')
+        self.print(f'Number of valid low resolution images: {len(os.listdir(dir_test_low)) * self.h * self.w}')
+        self.print(f'Number of valid high resolution images: {len(os.listdir(dir_test_high)) * self.h * self.w}')
+
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import torchvision
