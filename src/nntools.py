@@ -541,10 +541,10 @@ class Trainer(Model):
 
 
 def Experiment(net, train_set, val_set, optimizer, stats_manager, device, criterion,
-                output_dir=None, batch_size=16, perform_validation_during_training=False, tensor_board=False):
+                output_dir=None, batch_size=16, perform_validation_during_training=False, tensor_board=False, use_lpips_loss=False):
     print("WARNING /!\ Class experiment is deprecated. Please use class Trainer instead.")
     exp = Trainer(net, train_set, val_set, optimizer, stats_manager, device, criterion,
-                output_dir, batch_size, perform_validation_during_training, tensor_board)
+                output_dir, batch_size, perform_validation_during_training, tensor_board, use_lpips_loss)
     return exp
 
 

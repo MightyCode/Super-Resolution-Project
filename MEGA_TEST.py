@@ -7,13 +7,10 @@ import copy
 from src.ImageTool import ImageTool
 from src.PatchImageTool import PatchImageTool
 
+from src.InitModel import InitModel
+
 from src.PytorchUtil import PytorchUtil as torchUtil
 from src.CarlaDataset import CarlaDatasetPatch, CarlaDataset
-
-from src.UpscaleNN import UpscaleNN, UpscaleResidualNN
-from src.rdn import RDN
-
-import src.nntools as nt
 
 import torch
 import torchvision.transforms as transforms
@@ -86,47 +83,6 @@ def create_test_config() -> dict:
         ]
     }
 
-def create_model(
-        model_name: str, model_weights_path : str, model_hyperparameters: dict, 
-        super_res_factor: float, device) -> torch.nn.Module:
-
-    def criterion(y, d):
-        import torch.nn.functional as F
-        return F.mse_loss(y, d)
-
-    # to lower
-    r = None
-    if "upscale" in model_name.lower():
-        print(model_name.lower())
-        if "residual" in model_name.lower() or "resid" in model_name.lower():
-            MODEL_INIT = UpscaleResidualNN
-        else:
-            MODEL_INIT = UpscaleNN
-
-        r = MODEL_INIT(super_res_factor=super_res_factor, old_version=("old" in model_name.lower())) 
-    elif "rdn" in model_name.lower():
-        r = RDN(C=model_hyperparameters["C"], D=model_hyperparameters["D"], 
-                G=model_hyperparameters["G"], G0=model_hyperparameters["G0"], 
-                scaling_factor=super_res_factor, 
-                kernel_size=model_hyperparameters["kernelSize"], 
-                upscaling='shuffle', weights=None)
-        
-    is_lpips_model = "lpips" in model_name.lower()
-    
-    if r is None:
-        raise Exception("The model name is not correct")
-    
-    r.to(device)
-
-    adam = torch.optim.Adam(r.parameters(), lr=model_hyperparameters["learningRate"])
-    exp = nt.Experiment(r, 
-                            None, None, 
-                            adam, None, None, criterion,
-                            output_dir=model_weights_path,
-                            tensor_board=False,
-                            use_lpips_loss=is_lpips_model)
-
-    return exp
 
 def get_device():
     device = None
@@ -317,9 +273,9 @@ if __name__ == "__main__":
         for model in config["models"]:
             if model["type"] != "alternative":
                 try:
-                    nn_model = create_model(
-                        model["name"], model["weights"], model["hyperparameters"], 
-                        2, torch_device)
+                    nn_model = InitModel.create_model(
+                            model["name"], model["weights"], model["hyperparameters"], 
+                            2, torch_device)
                 except Exception as e:
                     raise Exception("\n\nThe model {} was not created properly, dataset {} and the upscale factor {}".format(model["name"], dataset_name, upscale_factor)) from e
 
@@ -358,7 +314,7 @@ if __name__ == "__main__":
                                                                                 torch_device, verbose=True)
                         else:
                             print ("**** * Using neural network model : {}".format(model["name"]))
-                            nn_model = create_model(model["name"], model["weights"], model["hyperparameters"], 
+                            nn_model = InitModel.create_model(model["name"], model["weights"], model["hyperparameters"], 
                                                 upscale_factor, torch_device)
                             
                             psnr, ssim = compute_metrics(dataloader, method, nn_model, torch_device)

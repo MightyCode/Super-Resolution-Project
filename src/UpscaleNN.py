@@ -37,7 +37,8 @@ class UpscaleNN(nn.Module):
 		new_height = int(h * self.super_res_factor)
 
 		if self.old_version:
-			return Resize((new_height, new_width), interpolation=transforms.InterpolationMode.BILINEAR)(image)
+			return Resize((new_height, new_width), interpolation=transforms.InterpolationMode.BILINEAR, 
+				antialias=True)(image)
 		else:
 			return Resize((new_height, new_width), interpolation=transforms.InterpolationMode.BICUBIC, 
 				antialias=True)(image)
