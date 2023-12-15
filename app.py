@@ -1,17 +1,13 @@
+import sys
 import streamlit as st
 import src.nntools as nt
-import src.UpscaleNN
-import src.rdn
 import numpy as np
 from torchvision import transforms
 from PIL import Image
+from src.InitModel import InitModel
 
-# Load the pre-trained VGG model
-un = src.UpscaleNN.UpscaleNN()
-model = nt.Model(un, output_dir="results/smallbatchexperiment-upscale", device="cpu")
+
 common_transform = transforms.Compose([
-    #transforms.RandomHorizontalFlip(),
-    #transforms.RandomVerticalFlip(),
     transforms.ToTensor(),
 ])
 
@@ -21,10 +17,10 @@ def get_image():
     return uploaded_img
 
 # Function to make predictions
-def predict(img):
+def predict(m, img):
     # Preprocess image by reversing the channels and applying the transform
     img = common_transform(img)
-    new_img = model(img)
+    new_img = m(img)
     new_img = new_img.squeeze(0)
     new_img = new_img.permute(1, 2, 0)
     new_img = new_img.detach().numpy()
@@ -32,6 +28,20 @@ def predict(img):
 
 
 if __name__ == "__main__":
+
+    NAME = "superresol-upscale-old"
+    PATH = "results/superresol-upscale2/"
+
+    if len(sys.argv) == 3:
+        NAME = sys.argv[1]
+        PATH = sys.argv[2]
+    else:
+        print(f"Usage : streamlit run app.py <model_name> <model_path>")
+        print(f"Default is :", NAME, PATH)
+
+
+    UPSCALE_FACTOR = 2
+    mod = InitModel.create_model(NAME, PATH, {"learningRate": 0.001}, UPSCALE_FACTOR, 'cpu')
     # Streamlit app
     st.title("Image Super resolution")
     img = get_image()
@@ -42,7 +52,7 @@ if __name__ == "__main__":
         print(img.shape)
         st.image(img, caption="Uploaded Image.", use_column_width=False)
             
-        pred_img = predict(img)
+        pred_img = predict(mod, img)
 
         st.subheader("Result:")
         st.image(pred_img, caption="Super resolution Image.", use_column_width=False)
