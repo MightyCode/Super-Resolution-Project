@@ -1,4 +1,5 @@
-from src.PatchImageTool import PatchImageTool
+if __name__ != "__main__":
+    from src.PatchImageTool import PatchImageTool
 
 import os
 from typing import Any
@@ -56,14 +57,13 @@ class CarlaDataset(Dataset):
             self.print("Check for download and resize ...")
 
         if download and not os.path.exists(self.high_res_path):
+            if self.verbose:
+                print("High-res dataset not present, downloading it ...")
             self.download_dataset(self.dataset_link, self.high_res)
             self.split_high_res_dataset()
 
-            if self.verbose:
-                print("High dataset not present, downloading it ...")
-
         if not os.path.exists(self.low_res_path):
-            print("Low dataset not present, resizing it ...")
+            print("Low-res dataset not present, resizing it ...")
             self.resize_dataset(os.path.join(self.split, high_res), os.path.join(self.split, low_res))
                     
         self.images = os.listdir(self.high_res_path)
@@ -77,11 +77,7 @@ class CarlaDataset(Dataset):
                 raise KeyError(f"{res} dataset link not found")
             
     def open_image(self, path:str):
-        #return np.array(Image.open(path))[:, :, 0:3]
         return cv2.imread(path)
-            
-    def look_for_dataset(self) -> bool:
-        return 
 
     def unzip_file(self, file_path: str, extract_path: str):
         with zipfile.ZipFile(file_path, 'r') as zip_ref:
@@ -117,7 +113,11 @@ class CarlaDataset(Dataset):
         for img in images:
             source_img = os.path.join(dir_source, img)
             dest_img = os.path.join(dir_dest, img)
-            self.resize_image(source_img, dest_img)
+            try:
+                self.resize_image(source_img, dest_img)
+            except:
+                print(f"Broken Image ({img}), skipping it...")
+                os.remove(source_img)
         self.print("Done!")
 
     def resize_image(self, source:str, dest:str) -> None:
@@ -135,14 +135,18 @@ class CarlaDataset(Dataset):
         if not os.path.exists(dir_test_high):
             os.makedirs(dir_test_high)
 
-        dir_high = os.path.join(self.resources_folder, self.high_res)
-        images = os.listdir(dir_high)
+        dir_train = os.path.join(self.resources_folder, self.high_res, "train")
+        images_train = os.listdir(dir_train)
+        dir_test = os.path.join(self.resources_folder, self.high_res, "test")
+        images_test = os.listdir(dir_test)
 
         self.print("Moving images...")
-        self._move_images(images[:int(0.8*len(images))], dir_high, dir_train_high)
-        self._move_images(images[int(0.8*len(images)):], dir_high, dir_test_high)
+        self._move_images(images_train, dir_train, dir_train_high)
+        self._move_images(images_test, dir_test, dir_test_high)
 
-        self._remove_folder(dir_high)
+        self._remove_folder(dir_train)
+        self._remove_folder(dir_test)
+        self._remove_folder(os.path.join(self.resources_folder, self.high_res))
         self.print("Done!")
 
     def _move_images(self, images:list, source:str, dest:str) -> None:
@@ -311,6 +315,7 @@ class CarlaDatasetPatch(CarlaDataset):
         self.print(f'Number of valid high resolution images: {len(os.listdir(dir_test_high)) * self.h * self.w}')
 
 if __name__ == "__main__":
+    from PatchImageTool import PatchImageTool
     import matplotlib.pyplot as plt
     import torchvision
     import numpy as np
