@@ -1,13 +1,13 @@
+from .PytorchUtil import PytorchUtil as torchUtil
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from src.PytorchUtil import PytorchUtil as torchUtil
-
 
 class PlotUtils:
     @staticmethod
-    def show_high_low_res_images(low_res_images, high_res_images, width=15, name=""):
+    def show_high_low_res_images(low_res_images, high_res_images, upscales=None, width=15, name=""):
         assert len(low_res_images) == len(high_res_images)
 
         num_images = len(low_res_images)
@@ -19,9 +19,10 @@ class PlotUtils:
             high_res_image = torchUtil.tensor_to_image(high_res_images[0])
             
             ax[0].imshow(low_res_image)
-            ax[0].set_title(name + " Low resolution")
+            ax[0].set_title(name + " Low resolution" + ("" if upscales is None else " (x" + \
+                                                         str(upscales[0]) + ")" + str(low_res_image.shape)))
             ax[1].imshow(high_res_image)
-            ax[1].set_title(name + " High resolution")
+            ax[1].set_title(name + " High resolution (" + str(high_res_image.shape) + ")")
 
             plt.show()
             
@@ -32,34 +33,43 @@ class PlotUtils:
             high_res_image = torchUtil.tensor_to_image(high_res_images[i])
             
             ax[i, 0].imshow(low_res_image)
-            ax[i, 0].set_title(name + " Low resolution (" + str(i) + ")")
+            ax[i, 0].set_title(name + " Low resolution (" + str(i) + ")" + \
+                                "" if upscales is None else " (x" + str(upscales[i]) + ")" + str(low_res_image.shape))
             ax[i, 1].imshow(high_res_image)
-            ax[i, 1].set_title(name + " High resolution (" + str(i) + ")")
+            ax[i, 1].set_title(name + " High resolution (" + str(i) + ")" + str(high_res_image.shape))
 
         plt.show()
 
     @staticmethod
-    def show_dataset_example(dataset, dataset_name, num_images=1, indices=None, width=15):
+    def show_dataset_example(dataset, num_images=1, indices=None, width=15):
         low_res_images = []
         high_res_images = []
+        upscale_factors = []
 
         num_images = max(num_images, len(indices) if indices else 0)
 
         for i in range(num_images):
             if indices:
-                low_res, high_res = dataset[indices[i]]
+                low_res_patches, high_res = dataset[indices[i]]
 
-                low_res_images.append(low_res)
+                index_low_res_patch = np.random.randint(len(low_res_patches))
+                
+                low_res_images.append(low_res_patches[index_low_res_patch])
                 high_res_images.append(high_res)
+                # torch to int
+                upscale_factors.append(dataset.get_upscale_factor(index_low_res_patch))
             else:
                 index = np.random.randint(len(dataset))
-                low_res, high_res = dataset[index]
-                
-                low_res_images.append(low_res)
-                high_res_images.append(high_res)
+                low_res_patches, high_res = dataset[index]
 
-            PlotUtils.show_high_low_res_images(low_res_images, high_res_images, 
-                                               width=width, name=dataset_name)
+                index_low_res_patch = np.random.randint(len(low_res_patches))
+                
+                low_res_images.append(low_res_patches[index_low_res_patch])
+                high_res_images.append(high_res)
+                upscale_factors.append(dataset.get_upscale_factor(index_low_res_patch))
+        
+        PlotUtils.show_high_low_res_images(low_res_images, high_res_images, upscales=upscale_factors,
+                                               width=width, name=dataset.name())
 
 
     # Plot for the the predicted image, low resolution image and high resolution image in first row
@@ -74,7 +84,11 @@ class PlotUtils:
         axes[1][2].clear()
 
         ##Only to use when perform_validation_during_training == True
-        low_res, high_res = dataset[index]
+        low_res_patches, high_res = dataset[index]
+
+        chosen_upscale = 0
+        # Take first upscale to show performence
+        low_res = low_res_patches[chosen_upscale]
 
         with torch.no_grad():
             predicted_res = exp.net(low_res.to(device))[0]
@@ -83,7 +97,7 @@ class PlotUtils:
             high_res_image = torchUtil.tensor_to_image(high_res)
             predicted_res_image = torchUtil.tensor_to_image(predicted_res)
 
-        axes[0][0].set_title(f'Low res: {low_res_image.shape}')
+        axes[0][0].set_title(f'Low res (x{dataset.get_upscale_factor(chosen_upscale)}): {low_res_image.shape}')
         axes[0][1].set_title(f'High res: {high_res_image.shape}')
         axes[0][2].set_title(f'Predicted res: {predicted_res_image.shape}')
 
@@ -122,21 +136,21 @@ class PlotUtils:
             axes[2].clear()
 
             if indices:
-                low_res, high_res = dataset[indices[0]]
+                low_res, high_res, upscale = dataset[indices[0]]
                 print("Chosen index", indices[0])
             else:
                 index = np.random.randint(len(dataset))
-                low_res, high_res = dataset[index]
+                low_res, high_res, upscale = dataset[index]
                 print("Chosen index", index)
 
             with torch.no_grad():
-                predicted_res = model.net(low_res.to(device))[0]
+                predicted_res = model.net(low_res.to(device), upscale_factor=upscale)[0]
 
                 low_res_image = torchUtil.tensor_to_image(low_res)
                 high_res_image = torchUtil.tensor_to_image(high_res)
                 predicted_res_image = torchUtil.tensor_to_image(predicted_res)
 
-            axes[0].set_title(f'Low res: {low_res_image.shape}')
+            axes[0].set_title(f'Low res (x{upscale}): {low_res_image.shape}')
             axes[1].set_title(f'High res: {high_res_image.shape}')
             axes[2].set_title(f'Predicted res: {predicted_res_image.shape}')
 
@@ -150,21 +164,21 @@ class PlotUtils:
 
         for i in range(num_images):
             if indices:
-                low_res, high_res = dataset[indices[i]]
+                low_res, high_res, upscale = dataset[indices[i]]
                 print("Chosen index", indices[i])
             else:
                 index = np.random.randint(len(dataset))
-                low_res, high_res = dataset[index]
+                low_res, high_res, upscale = dataset[index]
                 print("Chosen index", index)
 
             with torch.no_grad():
-                predicted_res = model.net(low_res.to(device))[0]
+                predicted_res = model.net(low_res.to(device), upscale_factor=upscale)[0]
 
                 low_res_image = torchUtil.tensor_to_image(low_res)
                 high_res_image = torchUtil.tensor_to_image(high_res)
                 predicted_res_image = torchUtil.numpy_to_image(torchUtil.tensor_to_numpy(predicted_res))
 
-            axes[i, 0].set_title(f'Low res: {low_res_image.shape}')
+            axes[i, 0].set_title(f'Low res (x{upscale}): {low_res_image.shape}')
             axes[i, 1].set_title(f'High res: {high_res_image.shape}')
             axes[i, 2].set_title(f'Predicted res: {predicted_res_image.shape}')
 
@@ -219,15 +233,15 @@ class PlotUtils:
 
         for i in range(num_images):
             if indices:
-                low_res, _ = dataset[indices[i]]
+                low_res, _, upscale = dataset[indices[i]]
                 print("Chosen index", indices[i])
             else:
                 index = np.random.randint(len(dataset))
-                low_res, _ = dataset[index]
+                low_res, _, upscale = dataset[index]
                 print("Chosen index", index)
 
             with torch.no_grad():
-                predicted_torch = model.net(low_res.to(device))[0]
+                predicted_torch = model.net(low_res.to(device), upscale_factor=upscale)[0]
 
                 predicted_res = torchUtil.tensor_to_numpy(predicted_torch)
                             
@@ -236,7 +250,7 @@ class PlotUtils:
 
             print(subtraction_image.mean(), subtraction_image.std())
 
-            axes[i, 0].set_title(f'Predicted res: {predicted_res.shape}')
+            axes[i, 0].set_title(f'Predicted res (x{upscale}): {predicted_res.shape}')
             axes[i, 1].set_title(f'Bicubic res: {bicubic_image.shape}')
             axes[i, 2].set_title(f'Substraction res: {subtraction_image.shape}')
 

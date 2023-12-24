@@ -1,7 +1,14 @@
 {
 	"datasets":{
-		"128x128":"https://drive.google.com/uc?export=download&id=19WNetKoHChsVk4KDBAgnhLQEcS2ILgId",
-		"256x256":"https://drive.google.com/uc?export=download&id=16cXZ2etHDMrgXSXtLlZ5HuPh7e0KSkVk",
-		"1920x1080":"https://drive.google.com/uc?export=download&id=1b3DJTnJJNj08o6ivTrRdiHJt7e05meSP"
+		"old" : {
+			"128x128":"https://drive.google.com/uc?export=download&id=19WNetKoHChsVk4KDBAgnhLQEcS2ILgId",
+			"256x256":"https://drive.google.com/uc?export=download&id=16cXZ2etHDMrgXSXtLlZ5HuPh7e0KSkVk"
+		},
+		"train" : {
+			"1920x1080":"https://drive.google.com/uc?export=download&id=1GYjim2wyqmsKNNSvS_TQ6lHwqOzt_kwN"
+		},
+		"test" : {
+			"1920x1080":"https://drive.google.com/uc?export=download&id=1i3WJpqWInsA4bl0sPEmxX4b5BeDK9he2"
+		}
 	}
 }

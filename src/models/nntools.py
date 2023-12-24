@@ -201,12 +201,15 @@ class Trainer(Model):
     INFO_VERSION = 1.0
 
     def __init__(self, net, train_set, val_set, optimizer, stats_manager, device, criterion,
-                 output_dir=None, batch_size=16, perform_validation_during_training=False, tensor_board=False, use_lpips_loss=True):
+                 output_dir=None, batch_size=16, perform_validation_during_training=False, 
+                 tensor_board=False, use_lpips_loss=True):
 
         self.net = net
         self.train_set = train_set
         self.val_set = val_set
+
         self.tensor_board = tensor_board
+
         if self.train_set is not None:
             self.train_set_len = train_set.__len__()
         else:
@@ -430,15 +433,18 @@ class Trainer(Model):
             #initialize tensorboard writer
 
             self.x_tensorboard, self.d_tensorboard = next(iter(self.train_loader))
-        
-            self.writer = SummaryWriter(self.output_dir)
-            self.writer.add_graph(self.net, self.x_tensorboard.to(self.device))
 
+            for i, low_res in enumerate(self.x_tensorboard):
+                upscale = self.train_set.get_upscale_factor[i]
+
+                self.writer = SummaryWriter(self.output_dir)
+                self.net.set_upscale_mode(upscale)
+                self.writer.add_graph(self.net, low_res.to(self.device))
 
         print("Start/Continue training from epoch {}".format(self.start_epoch))
         
-        if plot is not None:
-            plot(self)
+        """if plot is not None:
+            plot(self)"""
 
         self.current_training_time = 0
         self.training_start_time = datetime.datetime.now()
@@ -450,16 +456,23 @@ class Trainer(Model):
 
             self.net.train()
 
-            for x, d in self.train_loader:
-                x, d = x.to(self.device), d.to(self.device)
-                self.optimizer.zero_grad()
-                y = self.net.forward(x)
-                loss = self.criterion(y, d, self.lpips, self.coef)
-                loss.backward()
-                self.optimizer.step()
+            for low_res_patches, high_res in self.train_loader:
+                # For upscale in patches
+                for i, low_res in enumerate(low_res_patches):
+                    self.net.set_upscale_mode(self.train_set.get_upscale_factor(i))
 
-                with torch.no_grad():
-                    self.stats_manager.accumulate(loss.item(), x, y, d)
+                    low_res, high_res = low_res.to(self.device), high_res.to(self.device)
+                    self.optimizer.zero_grad()
+                    
+                    prediction = self.net.forward(low_res)
+
+                    loss = self.criterion(prediction, high_res, self.lpips, self.coef)
+
+                    loss.backward()
+                    self.optimizer.step()
+
+                    with torch.no_grad():
+                        self.stats_manager.accumulate(loss.item(), low_res, prediction, high_res)
         
             self.net.eval()
 
@@ -498,13 +511,17 @@ class Trainer(Model):
         self.net.eval()
 
         with torch.no_grad():
-            for x, d in self.val_loader:
-                x, d = x.to(self.device), d.to(self.device)
-                y = self.net.forward(x)
+            for low_res_patches, high_res in self.val_loader:
+                # For upscale in patches
+                for i, low_res in enumerate(low_res_patches):
+                    self.net.set_upscale_mode(self.val_set.get_upscale_factor(i))
+                    
+                    low_res, high_res = low_res.to(self.device), high_res.to(self.device)
+                    y = self.net.forward(low_res)
 
-                loss = self.criterion(y, d, self.lpips, self.coef)
+                    loss = self.criterion(y, high_res, self.lpips, self.coef)
 
-                self.stats_manager.accumulate(loss.item(), x, y, d)
+                    self.stats_manager.accumulate(loss.item(), low_res, y, high_res)
 
             if self.tensor_board:
                 if self.current_epoch % 5 == 0:
@@ -529,10 +546,10 @@ class Trainer(Model):
     
     def add_image_to_tensorboard(self, mode='train'):
         if mode == 'val':
-            x,d = next(iter(self.val_loader))
+            x, d = next(iter(self.val_loader))
         else:
-            x,d = self.x_tensorboard, self.d_tensorboard
-        x,d = x.to(self.device), d.to(self.device)
+            x, d = self.x_tensorboard, self.d_tensorboard
+        x, d = x.to(self.device), d.to(self.device)
         with torch.no_grad():
             y = self.net.forward(x)
         grid = torch.cat((d,y), dim=0)

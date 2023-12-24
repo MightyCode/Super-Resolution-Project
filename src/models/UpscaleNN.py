@@ -1,11 +1,11 @@
-from torch import nn, concat
+from torch import nn
 from torchvision.transforms.v2 import Resize
 from torchvision import transforms
 
 class UpscaleNN(nn.Module):
-	def __init__(self, super_res_factor=2, old_version=False) -> None:
+	def __init__(self, upscale_factor=None, old_version=False) -> None:
 		super().__init__()
-		self.super_res_factor = super_res_factor
+		self.upscale_factor = upscale_factor
 
 		self.old_version = old_version
 
@@ -25,6 +25,8 @@ class UpscaleNN(nn.Module):
 
 		self.final = nn.Conv2d(9, 3, 1)
 
+	def set_upscale_mode(self, upscale_factor):
+		self.upscale_factor = upscale_factor
 	
 	def upscale_image(self, image):
 		if len(image.shape) == 3:
@@ -33,8 +35,8 @@ class UpscaleNN(nn.Module):
 		else:
 			_, _, h, w = image.shape
 
-		new_width = int(w * self.super_res_factor)
-		new_height = int(h * self.super_res_factor)
+		new_width = int(w * self.upscale_factor)
+		new_height = int(h * self.upscale_factor)
 
 		if self.old_version:
 			return Resize((new_height, new_width), interpolation=transforms.InterpolationMode.BILINEAR, 
@@ -67,51 +69,3 @@ class UpscaleNN(nn.Module):
 				nn.ReLU()
 			)
 	
-class UpscaleResidualNN(UpscaleNN):
-	def __init__(self, super_res_factor=2, old_version=False) -> None:
-		super().__init__(super_res_factor, old_version=old_version)
-		self.super_res_factor = super_res_factor
-		
-		self.encod1 = nn.Sequential(
-			self.DoubleConv2d(3, 16),
-			nn.BatchNorm2d(16)
-		)
-		self.encod2 = nn.Sequential(
-			self.DoubleConv2d(16, 32),
-			nn.BatchNorm2d(32)
-		)
-		self.encod3 = nn.Sequential(
-			self.DoubleConv2d(32, 64),
-			nn.BatchNorm2d(64)
-		)
-		self.decod1 = nn.Sequential(
-			nn.ConvTranspose2d(64, 32, 2, 2),
-			nn.BatchNorm2d(32),
-			nn.ReLU(),
-		)
-		self.decod2 = nn.Sequential(
-			self.DoubleConv2d(64, 32),
-			nn.ConvTranspose2d(32, 16, 2, 2),
-			nn.BatchNorm2d(16),
-			nn.ReLU(),
-		)
-		self.decod3 = nn.Sequential(
-			self.DoubleConv2d(32, 16),
-			nn.Conv2d(16, 3, 1),
-		)
-
-	
-	def forward(self, X):
-		X_U = self.upscale_image(X)
-
-		X_1 = self.encod1(X_U)
-
-		X_2 = self.encod2(nn.MaxPool2d(2)(X_1))
-
-		X_4 = self.encod3(nn.MaxPool2d(2)(X_2))
-
-		result = self.decod1(X_4)
-		result = self.decod2(concat((X_2,result), dim = 1))
-		result = self.decod3(concat((X_1,result), dim = 1))
-		
-		return (result + X_U).clamp(0,1)

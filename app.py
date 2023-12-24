@@ -4,7 +4,7 @@ import src.nntools as nt
 import numpy as np
 from torchvision import transforms
 from PIL import Image
-from src.InitModel import InitModel
+from src.models.InitModel import InitModel
 
 
 common_transform = transforms.Compose([

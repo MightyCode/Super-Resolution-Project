@@ -7,7 +7,7 @@ import copy
 from src.ImageTool import ImageTool
 from src.PatchImageTool import PatchImageTool
 
-from src.InitModel import InitModel
+from src.models.InitModel import InitModel
 
 from src.PytorchUtil import PytorchUtil as torchUtil
 from src.CarlaDataset import CarlaDatasetPatch, CarlaDataset

@@ -1,4 +1,4 @@
-from src.PytorchUtil import PytorchUtil as torchUtil
+from src.utils.PytorchUtil import PytorchUtil as torchUtil
 
 from skimage import metrics
 import numpy as np
@@ -6,7 +6,6 @@ import torch
 import math
 
 class PatchImageTool:
-
     @staticmethod
     def get_patch_from_image_xy(image_torch, x, y, patch_size=32):
         start_x = patch_size * x
@@ -123,7 +122,6 @@ class PatchImageTool:
             image_size, low_res, 
             device, 
             patch_size=patch_size, upscale_factor=dataset.upscale_factor)
-    
 
     @staticmethod
     def predict_images_from_images_patches(
