@@ -3,9 +3,9 @@ from torchvision.transforms.v2 import Resize
 from torchvision import transforms
 
 class UpscaleNN(nn.Module):
-	def __init__(self, upscale_factor=None, old_version=False) -> None:
+	def __init__(self, default_upscale_factor=None, old_version=False) -> None:
 		super().__init__()
-		self.upscale_factor = upscale_factor
+		self.upscale_factor = default_upscale_factor
 
 		self.old_version = old_version
 
@@ -35,8 +35,8 @@ class UpscaleNN(nn.Module):
 		else:
 			_, _, h, w = image.shape
 
-		new_width = int(w * self.upscale_factor)
-		new_height = int(h * self.upscale_factor)
+		new_width = w * self.upscale_factor
+		new_height = h * self.upscale_factor
 
 		if self.old_version:
 			return Resize((new_height, new_width), interpolation=transforms.InterpolationMode.BILINEAR, 

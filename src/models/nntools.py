@@ -431,11 +431,13 @@ class Trainer(Model):
 
         if self.start_epoch < self.goal_epoch and self.tensor_board:
             #initialize tensorboard writer
-
-            self.x_tensorboard, self.d_tensorboard = next(iter(self.train_loader))
+            for low_res_patches, high_res in self.train_loader:
+                self.x_tensorboard = low_res_patches
+                self.d_tensorboard = high_res
+                break
 
             for i, low_res in enumerate(self.x_tensorboard):
-                upscale = self.train_set.get_upscale_factor[i]
+                upscale = self.train_set.get_upscale_factor(i)
 
                 self.writer = SummaryWriter(self.output_dir)
                 self.net.set_upscale_mode(upscale)
@@ -545,17 +547,23 @@ class Trainer(Model):
 
     
     def add_image_to_tensorboard(self, mode='train'):
-        if mode == 'val':
-            x, d = next(iter(self.val_loader))
-        else:
-            x, d = self.x_tensorboard, self.d_tensorboard
-        x, d = x.to(self.device), d.to(self.device)
         with torch.no_grad():
-            y = self.net.forward(x)
-        grid = torch.cat((d,y), dim=0)
-        grid = torchvision.utils.make_grid(grid, nrow=2, padding=2, normalize=True)
-        self.writer.add_image('Image/{}'.format(mode), grid, self.current_epoch)
+            for low_res_patches, high_res in self.val_loader:
+                if mode == 'train':
+                    low_res_patches, high_res = self.x_tensorboard, self.d_tensorboard
 
+                for i, low_res in enumerate(low_res_patches):
+                    upscale = self.train_set.get_upscale_factor(i)
+                    self.net.set_upscale_mode(upscale)
+                    
+                    low_res, high_res = low_res.to(self.device), high_res.to(self.device)
+                    
+                    y = self.net.forward(low_res)
+                    grid = torch.cat((high_res,y), dim=0)
+                    grid = torchvision.utils.make_grid(grid, nrow=2, padding=2, normalize=True)
+                    self.writer.add_image('Image/{}{}'.format(mode, self.train_set.get_upscale_factor(i)), grid, self.current_epoch)
+
+                break
 
 def Experiment(net, train_set, val_set, optimizer, stats_manager, device, criterion,
                 output_dir=None, batch_size=16, perform_validation_during_training=False, tensor_board=False, use_lpips_loss=False):

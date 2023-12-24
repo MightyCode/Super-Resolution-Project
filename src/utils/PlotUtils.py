@@ -135,22 +135,26 @@ class PlotUtils:
             axes[1].clear()
             axes[2].clear()
 
-            if indices:
-                low_res, high_res, upscale = dataset[indices[0]]
-                print("Chosen index", indices[0])
-            else:
-                index = np.random.randint(len(dataset))
-                low_res, high_res, upscale = dataset[index]
-                print("Chosen index", index)
-
             with torch.no_grad():
-                predicted_res = model.net(low_res.to(device), upscale_factor=upscale)[0]
+                if indices:
+                    low_res_patches, high_res = dataset[indices[0]]
+                    print("Chosen index", indices[0])
+                else:
+                    index = np.random.randint(len(dataset))
+                    low_res_patches, high_res = dataset[index]
+                    print("Chosen index", index)
+
+                chosen_upscale = 0
+                low_res = low_res_patches[chosen_upscale]
+                model.net.set_upscale_mode(chosen_upscale)
+
+                predicted_res = model.net(low_res.to(device))[0]
 
                 low_res_image = torchUtil.tensor_to_image(low_res)
                 high_res_image = torchUtil.tensor_to_image(high_res)
                 predicted_res_image = torchUtil.tensor_to_image(predicted_res)
 
-            axes[0].set_title(f'Low res (x{upscale}): {low_res_image.shape}')
+            axes[0].set_title(f'Low res (x{dataset.get_upscale_factor(low_res_patches)}): {low_res_image.shape}')
             axes[1].set_title(f'High res: {high_res_image.shape}')
             axes[2].set_title(f'Predicted res: {predicted_res_image.shape}')
 
@@ -163,16 +167,22 @@ class PlotUtils:
             return
 
         for i in range(num_images):
-            if indices:
-                low_res, high_res, upscale = dataset[indices[i]]
-                print("Chosen index", indices[i])
-            else:
-                index = np.random.randint(len(dataset))
-                low_res, high_res, upscale = dataset[index]
-                print("Chosen index", index)
-
             with torch.no_grad():
-                predicted_res = model.net(low_res.to(device), upscale_factor=upscale)[0]
+                if indices:
+                    low_res_patches, high_res = dataset[indices[i]]
+                    print("Chosen index", indices[i])
+                else:
+                    index = np.random.randint(len(dataset))
+                    low_res_patches, high_res = dataset[index]
+                    print("Chosen index", index)
+
+                chosen_upscale = 0
+                low_res = low_res_patches[chosen_upscale]
+                upscale = dataset.get_upscale_factor(chosen_upscale)
+
+                model.net.set_upscale_mode(upscale)
+
+                predicted_res = model.net(low_res.to(device))[0]
 
                 low_res_image = torchUtil.tensor_to_image(low_res)
                 high_res_image = torchUtil.tensor_to_image(high_res)
@@ -199,16 +209,20 @@ class PlotUtils:
             axes[1].clear()
             axes[2].clear()
 
-            if indices:
-                low_res, _ = dataset[indices[0]]
-                print("Chosen index", indices[0])
-            else:
-                index = np.random.randint(len(dataset))
-                low_res, _ = dataset[index]
-                print("Chosen index", index)
-
-
             with torch.no_grad():
+                if indices:
+                    low_res_patches, _ = dataset[indices[0]]
+                    print("Chosen index", indices[0])
+                else:
+                    index = np.random.randint(len(dataset))
+                    low_res_patches, _ = dataset[index]
+                    print("Chosen index", index)
+
+                chosen_upscale = 0
+                low_res = low_res_patches[chosen_upscale]
+                upscale = dataset.get_upscale_factor(chosen_upscale)
+                model.net.set_upscale_mode(upscale)
+           
                 predicted_torch = model.net(low_res.to(device))[0]
 
                 predicted_res = torchUtil.tensor_to_numpy(predicted_torch)
@@ -218,7 +232,7 @@ class PlotUtils:
 
             print(subtraction_image.mean(), subtraction_image.std())
 
-            axes[0].set_title(f'Predicted res: {predicted_res.shape}')
+            axes[0].set_title(f'Predicted res (x{upscale}): {predicted_res.shape}')
             axes[1].set_title(f'Bicubic res: {bicubic_image.shape}')
             axes[2].set_title(f'Substraction res: {subtraction_image.shape}')
 
@@ -232,16 +246,21 @@ class PlotUtils:
 
 
         for i in range(num_images):
-            if indices:
-                low_res, _, upscale = dataset[indices[i]]
-                print("Chosen index", indices[i])
-            else:
-                index = np.random.randint(len(dataset))
-                low_res, _, upscale = dataset[index]
-                print("Chosen index", index)
-
             with torch.no_grad():
-                predicted_torch = model.net(low_res.to(device), upscale_factor=upscale)[0]
+                if indices:
+                    low_res_patches, _ = dataset[indices[i]]
+                    print("Chosen index", indices[i])
+                else:
+                    index = np.random.randint(len(dataset))
+                    low_res_patches, _ = dataset[index]
+                    print("Chosen index", index)
+
+                chosen_upscale = 0
+                low_res = low_res_patches[chosen_upscale]
+                upscale = dataset.get_upscale_factor(chosen_upscale)
+                model.net.set_upscale_mode(upscale)
+            
+                predicted_torch = model.net(low_res.to(device))[0]
 
                 predicted_res = torchUtil.tensor_to_numpy(predicted_torch)
                             

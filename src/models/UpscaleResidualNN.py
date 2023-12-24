@@ -5,8 +5,8 @@ from torchvision.transforms.v2 import Resize
 from torchvision import transforms
 
 class UpscaleResidualNN(UpscaleNN):
-	def __init__(self, upscale_factor=None, old_version=False) -> None:
-		super().__init__(upscale_factor, old_version=old_version)
+	def __init__(self, default_upscale_factor=None, old_version=False) -> None:
+		super().__init__(default_upscale_factor, old_version=old_version)
 		
 		self.encod1 = nn.Sequential(
 			self.DoubleConv2d(3, 16),
