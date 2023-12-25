@@ -19,8 +19,8 @@ class PlotUtils:
             high_res_image = torchUtil.tensor_to_image(high_res_images[0])
             
             ax[0].imshow(low_res_image)
-            ax[0].set_title(name + " Low resolution" + ("" if upscales is None else " (x" + \
-                                                         str(upscales[0]) + ")" + str(low_res_image.shape)))
+            ax[0].set_title(name + " Low resolution" + " (x" + \
+                                                         str(upscales[0]) + ")" + str(low_res_image.shape))
             ax[1].imshow(high_res_image)
             ax[1].set_title(name + " High resolution (" + str(high_res_image.shape) + ")")
 
@@ -34,7 +34,7 @@ class PlotUtils:
             
             ax[i, 0].imshow(low_res_image)
             ax[i, 0].set_title(name + " Low resolution (" + str(i) + ")" + \
-                                "" if upscales is None else " (x" + str(upscales[i]) + ")" + str(low_res_image.shape))
+                               "(x" + str(upscales[i]) + ")" + str(low_res_image.shape))
             ax[i, 1].imshow(high_res_image)
             ax[i, 1].set_title(name + " High resolution (" + str(i) + ")" + str(high_res_image.shape))
 
@@ -175,8 +175,9 @@ class PlotUtils:
                     index = np.random.randint(len(dataset))
                     low_res_patches, high_res = dataset[index]
                     print("Chosen index", index)
-
-                chosen_upscale = 0
+                
+                chosen_upscale = i % dataset.number_upscale()
+                print(i, chosen_upscale, dataset.number_upscale())
                 low_res = low_res_patches[chosen_upscale]
                 upscale = dataset.get_upscale_factor(chosen_upscale)
 
@@ -188,13 +189,13 @@ class PlotUtils:
                 high_res_image = torchUtil.tensor_to_image(high_res)
                 predicted_res_image = torchUtil.numpy_to_image(torchUtil.tensor_to_numpy(predicted_res))
 
-            axes[i, 0].set_title(f'Low res (x{upscale}): {low_res_image.shape}')
-            axes[i, 1].set_title(f'High res: {high_res_image.shape}')
-            axes[i, 2].set_title(f'Predicted res: {predicted_res_image.shape}')
+                axes[i, 0].set_title(f'Low res (x{upscale}): {low_res_image.shape}')
+                axes[i, 1].set_title(f'High res: {high_res_image.shape}')
+                axes[i, 2].set_title(f'Predicted res: {predicted_res_image.shape}')
 
-            axes[i, 0].imshow(low_res_image)
-            axes[i, 1].imshow(high_res_image)
-            axes[i, 2].imshow(predicted_res_image)
+                axes[i, 0].imshow(low_res_image)
+                axes[i, 1].imshow(high_res_image)
+                axes[i, 2].imshow(predicted_res_image)
         
         plt.show()
 
@@ -255,7 +256,7 @@ class PlotUtils:
                     low_res_patches, _ = dataset[index]
                     print("Chosen index", index)
 
-                chosen_upscale = 0
+                chosen_upscale = i % dataset.number_upscale()
                 low_res = low_res_patches[chosen_upscale]
                 upscale = dataset.get_upscale_factor(chosen_upscale)
                 model.net.set_upscale_mode(upscale)

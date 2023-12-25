@@ -62,8 +62,8 @@ class PatchImageTool:
         predicted_image = np.zeros((image_size[1], image_size[0], 3), dtype=np.float32)
 
         # Compute the number of patches in width and height
-        num_patch_width = math.ceil(image_size[0] / upscale_factor / patch_size)
-        num_patch_height = math.ceil(image_size[1] / upscale_factor / patch_size)
+        num_patch_width = math.ceil(image_size[0] / upscale_factor / patch_size )
+        num_patch_height = math.ceil(image_size[1] / upscale_factor / patch_size )
         num_patches = num_patch_width * num_patch_height
 
         upscale_patch_size = int(patch_size * upscale_factor)
@@ -72,6 +72,8 @@ class PatchImageTool:
 
         computed_patch = []
         
+        model.net.set_upscale_mode(upscale_factor)
+
         for i in range(0, num_patches, batch_size):
             # Number of patch and batch size might not be divisible
             # So we need to take the min of the two
@@ -111,17 +113,16 @@ class PatchImageTool:
         return torchUtil.numpy_to_tensor(predicted_image)
 
     @staticmethod
-    def predict_image_from_dataset_patches(model, image_size, dataset, index, device, patch_size=32) -> torch.Tensor:
-                # Return a list of patch images
-        low_res, _ = dataset.get_all_patch_for_image(index)
-
-        print(index, low_res.shape)
+    def predict_image_from_dataset_patches(model, image_size, dataset, index, device) -> torch.Tensor:
+        upscale = model.net.get_upscale_mode()
+        # Return a list of patch images
+        low_res, _ = dataset.get_all_patch_for_image(index, upscale)
 
         return PatchImageTool.predict_image_from_image_patches(
             model, 
             image_size, low_res, 
             device, 
-            patch_size=patch_size, upscale_factor=dataset.upscale_factor)
+            patch_size=dataset.get_patch_size(upscale_factor=upscale), upscale_factor=upscale)
 
     @staticmethod
     def predict_images_from_images_patches(
@@ -183,14 +184,15 @@ class PatchImageTool:
 
     @staticmethod
     # Predict multiple images at the same time in the case of batch size > patch per image
-    def predict_images_from_dataset_patches(model, image_size, dataset, indices, device, patch_size=32, batch_size=2048) -> torch.Tensor:
-        upscale_factor = dataset.upscale_factor
+    def predict_images_from_dataset_patches(model, image_size, dataset, indices, device, batch_size=2048) -> torch.Tensor:
+        upscale_factor = model.net.get_upscale_mode()
+        patch_size = dataset.get_patch_size(upscale_factor=upscale_factor)
 
-        patches_on_one_image = dataset.get_number_patch_per_image()
+        patches_on_one_image = dataset.get_number_patch_per_image(upscale_factor=upscale_factor)
         patches_to_compute = torch.zeros((len(indices) * patches_on_one_image, 3, patch_size, patch_size), dtype=torch.float32)
 
         for i in range(len(indices)):
-            image_patches, _ = dataset.get_all_patch_for_image(indices[i])
+            image_patches, _ = dataset.get_all_patch_for_image(indices[i], upscale_factor=upscale_factor)
 
             for j in range(patches_on_one_image):
                 patches_to_compute[i * patches_on_one_image + j] = image_patches[j]
@@ -203,9 +205,11 @@ class PatchImageTool:
 
 
     @staticmethod
-    def compute_metrics_dataset(model, dataset, sub_dataset_size, image_size, device, patch_size=32, verbose=False):
+    def compute_metrics_dataset(model, dataset, sub_dataset_size, image_size, device, verbose=False):
         psnr = np.zeros(sub_dataset_size)
         ssim = np.zeros(sub_dataset_size)
+
+        upscale_factor = model.net.get_upscale_mode()
 
         # array of unique indices
         indices = np.random.choice(len(dataset), sub_dataset_size, replace=False)
@@ -217,13 +221,16 @@ class PatchImageTool:
             
             with torch.no_grad():
                 _, high_res = dataset.get_full_image(index_image)
-                pred_high_res = PatchImageTool.predict_image_from_dataset_patches(model, image_size, dataset, index_patch, device, patch_size=patch_size)
+                pred_high_res = PatchImageTool.predict_image_from_dataset_patches(
+                            model, 
+                            image_size, dataset, index_patch, device)
 
                 high_res_np = torchUtil.tensor_to_numpy(high_res)
                 pred_high_res_np = torchUtil.tensor_to_numpy(pred_high_res)
 
                 psnr[i] = metrics.peak_signal_noise_ratio(high_res_np, pred_high_res_np)
-                ssim[i] = metrics.structural_similarity(high_res_np, pred_high_res_np, win_size=7, data_range=1, multichannel=True, channel_axis=2)
+                ssim[i] = metrics.structural_similarity(high_res_np, pred_high_res_np, win_size=7, 
+                                                        data_range=1, multichannel=True, channel_axis=2)
 
                 if verbose and i % (sub_dataset_size // 100) == 0:
                     print("Current index", i, "PSNR", psnr[i], "SSIM", ssim[i])
@@ -236,8 +243,10 @@ class PatchImageTool:
         psnr = np.zeros(sub_dataset_size)
         ssim = np.zeros(sub_dataset_size)
 
+        upscale_factor = model.net.get_upscale_mode()
+
         # array of unique indices
-        number_patch_per_image = dataset.get_number_patch_per_image()
+        number_patch_per_image = dataset.get_number_patch_per_image(upscale_factor=upscale_factor)
         number_image_per_gen = math.ceil(batch_size / number_patch_per_image)
         indices_patch = np.zeros(sub_dataset_size, dtype=np.int32)
         indices_image = np.zeros(sub_dataset_size, dtype=np.int32)
@@ -264,7 +273,8 @@ class PatchImageTool:
                     pred_high_res_np = torchUtil.tensor_to_numpy(pred_high_res)
 
                     psnr[i + j] = metrics.peak_signal_noise_ratio(high_res_np, pred_high_res_np)
-                    ssim[i + j] = metrics.structural_similarity(high_res_np, pred_high_res_np, win_size=7, data_range=1, multichannel=True, channel_axis=2)
+                    ssim[i + j] = metrics.structural_similarity(high_res_np, pred_high_res_np, win_size=7, 
+                                                                data_range=1, multichannel=True, channel_axis=2)
 
                     if verbose and (i + j) % (sub_dataset_size // 20) == 0:
                         print((i + j) / sub_dataset_size * 100, "% (", (i + j) , ") -> PSNR", psnr[i + j], "SSIM", ssim[i + j])

@@ -195,19 +195,21 @@ class ImageDataset(Dataset):
     def __getitem__(self, index) -> Any:
         index = self.check_index(index)
 
-        low_res_index = index % len(self.low_res_paths)
-        upscale_factor = self.upscale_factors[low_res_index]
-        low_res_path = self.low_res_paths[low_res_index]
-
-        # Open image without transparence
         high_res = self.open_image(os.path.join(self.high_res_path, self.images[index]))
-        low_res = self.open_image(os.path.join(low_res_path, self.images[index]))
-
         if self.transforms is not None:
             high_res = self.transforms(high_res)
-            low_res = self.transforms(low_res)
+
+        low_res_images = []
+
+        for i, upscale in enumerate(self.upscale_factors):
+            low_res = self.open_image(os.path.join(self.low_res_paths[i], self.images[index]))
+
+            if self.transforms is not None:
+                low_res = self.transforms(low_res)
+
+            low_res_images.append(low_res)
         
-        return low_res, high_res, upscale_factor
+        return low_res_images, high_res
 
     @staticmethod
     def clean_dir(dir:str = "resources"):

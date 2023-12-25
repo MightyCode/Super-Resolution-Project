@@ -30,8 +30,8 @@ class ImageDatasetPatch(ImageDataset):
         
         # If the image is not divisible by the patch size, we add a patch to the right and to the bottom
         for i in range(len(self.upscale_factors)):
-            self.number_patch_widths.append(math.ceil(self.low_res_sizes[i][1] // self.patch_sizes[i]))
-            self.number_patch_heights.append(math.ceil(self.low_res_sizes[i][0] // self.patch_sizes[i]))
+            self.number_patch_widths.append(math.ceil(self.low_res_sizes[i][0] / self.patch_sizes[i]))
+            self.number_patch_heights.append(math.ceil(self.low_res_sizes[i][1] / self.patch_sizes[i]))
 
             self.number_patch_per_upscale.append(self.number_patch_widths[-1] * self.number_patch_heights[-1])
 
@@ -52,6 +52,12 @@ class ImageDatasetPatch(ImageDataset):
     
     def get_total_number_patch_per_image(self):
         return self.total_number_patch
+
+    def get_patch_size(self, upscale_factor=None, upscale_index=None):
+        if upscale_index is not None:
+            return self.patch_sizes[upscale_index]
+        
+        return self.patch_sizes[self.upscale_factors.index(upscale_factor)]
 
     """
     Return the patch for all sub size
@@ -113,10 +119,15 @@ class ImageDatasetPatch(ImageDataset):
             image_low_res = self.transforms(image_low_res)
             image_high_res = self.transforms(image_high_res)
 
-        patches_low_res = PatchImageTool.get_patchs_from_image(image_low_res, self.patch_size, 
-                                                               w=number_patch_width, h=number_patch_height)
-        patches_high_res = PatchImageTool.get_patchs_from_image(image_high_res, self.patch_size * self.upscale_factors[upscale_index], 
-                                                                w=number_patch_width, h=number_patch_height)
+        patches_low_res = PatchImageTool.get_patchs_from_image(
+            image_low_res, self.patch_sizes[upscale_index], 
+                w=number_patch_width, h=number_patch_height)
+
+        patches_high_res = PatchImageTool.get_patchs_from_image(
+            image_high_res, 
+            self.patch_sizes[upscale_index] * self.upscale_factors[upscale_index], 
+            w=number_patch_width, h=number_patch_height)
+    
     
         return patches_low_res, patches_high_res
     

@@ -27,6 +27,9 @@ class UpscaleNN(nn.Module):
 
 	def set_upscale_mode(self, upscale_factor):
 		self.upscale_factor = upscale_factor
+
+	def get_upscale_mode(self):
+		return self.upscale_factor
 	
 	def upscale_image(self, image):
 		if len(image.shape) == 3:

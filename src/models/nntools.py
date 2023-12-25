@@ -425,6 +425,8 @@ class Trainer(Model):
         if self.stats_manager is not None:
             self.stats_manager.init()
         
+        if plot is not None:
+                plot(self)
 
         self.start_epoch = self.epoch
         self.goal_epoch = num_epochs
@@ -555,7 +557,7 @@ class Trainer(Model):
                 for i, low_res in enumerate(low_res_patches):
                     upscale = self.train_set.get_upscale_factor(i)
                     self.net.set_upscale_mode(upscale)
-                    
+
                     low_res, high_res = low_res.to(self.device), high_res.to(self.device)
                     
                     y = self.net.forward(low_res)
