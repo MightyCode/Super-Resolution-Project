@@ -82,15 +82,12 @@ class StatsManager():
             upscale_factor (int): the upscale factor for the last update.
         """
         self.number_update += 1
-        print(loss, upscale_factor, self.running_loss)
 
         for key in loss.keys():
             if key not in self.running_loss[upscale_factor].keys():
                 self.running_loss[upscale_factor][key] = 0
 
             self.running_loss[upscale_factor][key] += loss[key]
-
-        print(loss, upscale_factor, self.running_loss)
 
     def summarize(self):
         """Compute statistics based on accumulated ones"""
@@ -235,6 +232,8 @@ class Trainer(Model):
     """
 
     INFO_VERSION = 1.0
+    TRAINING = "training"
+    VALIDATION = "validation"
 
     def __init__(self, net, train_set, val_set, optimizer, stats_manager, device, criterion,
                  output_dir=None, batch_size=16, perform_validation_during_training=False, 
@@ -285,7 +284,10 @@ class Trainer(Model):
         self.perform_validation_during_training = perform_validation_during_training
 
         # Initialize history
-        self.history = []
+        self.history = {
+            Trainer.TRAINING : [],
+            Trainer.VALIDATION : []
+        }
 
         self.criterion = criterion
         
@@ -327,7 +329,7 @@ class Trainer(Model):
     @property
     def epoch(self):
         """Returns the number of epochs already performed."""
-        return len(self.history)
+        return len(self.history[Trainer.TRAINING])
 
     def info(self):
         """Returns the setting of the experiment."""
@@ -461,8 +463,8 @@ class Trainer(Model):
         if self.stats_manager is not None:
             self.stats_manager.init()
         
-        if plot is not None:
-                plot(self)
+        if plot is not None and len(self.history[Trainer.TRAINING]) > 0:
+            plot(self)
 
         self.start_epoch = self.epoch
         self.goal_epoch = num_epochs
@@ -524,32 +526,62 @@ class Trainer(Model):
                             self.train_set.get_upscale_factor(i)
                     )
         
-            self.net.eval()
+            self.history[Trainer.TRAINING].append(self.stats_manager.summarize())
 
-            if not self.perform_validation_during_training:
-                self.history.append(self.stats_manager.summarize())
-            else:
-                self.history.append(
-                    (self.stats_manager.summarize(), self.evaluate()))
-            
-            print(self.history)
+            self.net.eval()
+            if self.perform_validation_during_training:
+                self.history[Trainer.VALIDATION].append(self.evaluate())
 
             if self.tensor_board:
                 self.add_metrics_to_tensorboard()
                 if self.current_epoch % 5 == 0:
                     self.add_image_to_tensorboard()
                 
-            if self.perform_validation_during_training:
-                print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {} ssim: {}".format(self.epoch, time.time() - s, self.history[-1][0]['loss'], self.history[-1][1]['psnr'], self.history[-1][1]['ssim']))
+            """
+            Do a good print, taking into account all tested categories, all losses, all metrics for all upscale factors
+            """
+
+            print(f"Epoch {self.epoch} (Time : {round(time.time() - s, 2)}s) ")
+
+            current_history = {}
+            for categories in self.history.keys():
+                current_history[categories] = self.history[categories][-1]
+
+            for category in current_history.keys():
+                for upscale_factor in self.stats_manager.upscale_factor_list:
+                    print(f"\t {category[0:4]}.. x{upscale_factor} =>", end="")
+                    for loss_name in current_history[categories][upscale_factor]['loss'].keys():
+                        loss = round(current_history[category][upscale_factor]['loss'][loss_name], 4)
+                        print(f"{loss_name} : {loss}", end=" | ")
+            
+                    for metric_name in self.stats_manager.metrics:
+                        metric = round(current_history[category][upscale_factor]['metric'][metric_name], 1)
+                        print(f"{metric_name} : {metric}", end=" ")
+                    
+                    print()
+                
+
+            """if self.perform_validation_during_training:
+                print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {} ssim: {}".format(
+                    self.epoch, 
+                    time.time() - s, 
+                    self.history[Trainer.TRAINING][-1]['loss'], 
+                    self.history[Trainer.TRAINING][-1]['psnr'], 
+                    self.history[Trainer.TRAINING][-1]['ssim']))
             else:
-                print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {} ssim: {}".format(self.epoch, time.time() - s, self.history[-1]['loss'], self.history[-1]['psnr'], self.history[-1]['ssim']))
+                print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {} ssim: {}".format(
+                    self.epoch, 
+                    time.time() - s, 
+                    self.history[Trainer.TRAINING][-1]['loss'], 
+                    self.history[Trainer.TRAINING][-1]['psnr'], 
+                    self.history[Trainer.TRAINING][-1]['ssim']))"""
             
             self.current_training_time += (time.time() - s)
 
             self.save()
             
-            if plot is not None:
-                plot(self)
+        if plot is not None and len(self.history[Trainer.TRAINING]) > 0 and self.goal_epoch != self.start_epoch:
+            plot(self)
 
         print("Finish training for {} epochs".format(self.goal_epoch))
         self.net.eval()

@@ -72,56 +72,126 @@ class PlotUtils:
                                                width=width, name=dataset.name())
 
 
-    # Plot for the the predicted image, low resolution image and high resolution image in first row
     # plot Plot the loss, psnr and ssim curves in the second row
     @staticmethod
-    def plot_images_and_metrics(exp, axes, dataset, index, device): 
-        axes[0][0].clear()
-        axes[0][1].clear()
-        axes[0][2].clear()
-        axes[1][0].clear()
-        axes[1][1].clear()
-        axes[1][2].clear()
+    def plot_training_curve_and_metric(exp): 
+        history = exp.history
 
-        ##Only to use when perform_validation_during_training == True
-        low_res_patches, high_res = dataset[index]
+        training_history = history["training"]
+        validation_history = history["validation"]
 
-        chosen_upscale = 0
-        # Take first upscale to show performence
-        low_res = low_res_patches[chosen_upscale]
+        if len(training_history) == 0:
+            return
 
-        with torch.no_grad():
-            predicted_res = exp.net(low_res.to(device))[0]
+        upscale_factors = exp.stats_manager.upscale_factor_list
+        # list of keys
+        losses_key = list(training_history[0][upscale_factors[0]]["loss"].keys())
+        number_loss = len(losses_key) + 1 if len(losses_key) > 1 else 1
 
-            low_res_image = torchUtil.tensor_to_image(low_res)
-            high_res_image = torchUtil.tensor_to_image(high_res)
-            predicted_res_image = torchUtil.tensor_to_image(predicted_res)
+        # Plot all losses first
+        for i in range(number_loss - 1):
+            if (losses_key[i] == "loss") and i > 0:
+                # Swap 
+                losses_key[0], losses_key[i] = losses_key[i], losses_key[0]
 
-        axes[0][0].set_title(f'Low res (x{dataset.get_upscale_factor(chosen_upscale)}): {low_res_image.shape}')
-        axes[0][1].set_title(f'High res: {high_res_image.shape}')
-        axes[0][2].set_title(f'Predicted res: {predicted_res_image.shape}')
+        if len(upscale_factors) == 1:
+            fig, axes = plt.subplots(number_loss, 1, figsize=(5, 5 * number_loss))
 
-        axes[0][0].imshow(low_res_image)
-        axes[0][1].imshow(high_res_image)
-        axes[0][2].imshow(predicted_res_image)
+            for i in range(number_loss):
+                if i == 0 :
+                    for i_p in range(number_loss - 1):
+                        axes[i].plot([x[upscale_factors[0]]["loss"][losses_key[i_p]] for x in training_history], 
+                                     label=("Train " + losses_key[i_p]))
+                        axes[i].plot([x[upscale_factors[0]]["loss"][losses_key[i_p]] for x in validation_history], 
+                                     label="Valid " + losses_key[i_p])
+                    
+                    axes[i].set_title(f'Cumulated loss (x{upscale_factors[0]})')
+                else:
+                    loss_title = "total" if losses_key[i - 1] == "loss" else losses_key[i - 1]
+                    axes[i].plot([x[upscale_factors[0]]["loss"][losses_key[i-1]] for x in training_history], label="Training")
+                    axes[i].plot([x[upscale_factors[0]]["loss"][losses_key[i-1]] for x in validation_history], label="Validation")
+                    axes[i].set_title(f'Loss {loss_title} (x{upscale_factors[0]})')
+                
+                axes[i].set_xlabel('Epoch')
+                axes[i].set_ylabel('Loss')
 
-        axes[1][0].plot([exp.history[k][0]['loss'] for k in range(exp.epoch)], label="Train loss")
-        axes[1][1].plot([exp.history[k][0]['psnr'] for k in range(exp.epoch)], label="Train psnr")
-        axes[1][2].plot([exp.history[k][0]['ssim'] for k in range(exp.epoch)], label="Train ssim")
+                # set y axis in scientific notation
+                axes[i].set_yscale('log')
 
-        axes[1][0].plot([exp.history[k][1]['loss'] for k in range(exp.epoch)], label="Eval loss")
-        axes[1][1].plot([exp.history[k][1]['psnr'] for k in range(exp.epoch)], label="Eval psnr")
-        axes[1][2].plot([exp.history[k][1]['ssim'] for k in range(exp.epoch)], label="Eval ssim")
+                axes[i].legend()
+            
+        else:
+            # Plot the loss curves
+            fig, axes = plt.subplots( number_loss, len(upscale_factors), figsize=(5 * len(upscale_factors), 5 * number_loss))
 
-        axes[1][0].legend()
-        axes[1][0].set_xlabel("Epoch")
-        axes[1][0].set_ylabel("Loss")        
-        axes[1][1].legend()
-        axes[1][1].set_xlabel("Epoch")
-        axes[1][1].set_ylabel("PSNR") 
-        axes[1][2].legend()
-        axes[1][2].set_xlabel("Epoch")
-        axes[1][2].set_ylabel("SSIM")
+            for j in range(number_loss):
+                for i in range(len(upscale_factors)):
+                    if j == 0:
+                        for i_p in range(number_loss - 1):
+                            axes[j, i].plot([x[upscale_factors[j]]["loss"][losses_key[i_p]] for x in training_history], 
+                                            label="Train " + losses_key[i_p])
+                            axes[j, i].plot([x[upscale_factors[j]]["loss"][losses_key[i_p]] for x in validation_history], 
+                                            label="Valid " + losses_key[i_p])
+                        
+                        axes[j, i].set_title(f'Cumulated loss (x{upscale_factors[j]})')
+                    else:
+                        loss_title = "total" if losses_key[j - 1] == "loss" else losses_key[j - 1]
+                        axes[j, i].plot([x[upscale_factors[i]]["loss"][losses_key[j - 1]] for x in training_history], label="Training")
+                        axes[j, i].plot([x[upscale_factors[i]]["loss"][losses_key[j - 1]] for x in validation_history], label="Validation")
+                        axes[j, i].set_title(f'Loss {loss_title} (x{upscale_factors[i]})')
+                    
+                    axes[j, i].set_xlabel('Epoch')
+                    axes[j, i].set_ylabel('Loss')
+
+                    # set y axis in scientific notation
+                    axes[j, i].set_yscale('log')
+
+                    axes[j, i].legend()
+
+        #fig.show()
+
+        # Plot the metrics 
+
+        metrics = exp.stats_manager.metrics
+
+        if len(upscale_factors) == 1:
+            fig, axes = plt.subplots(len(metrics), 1, figsize=(7 * len(metrics), 5))
+
+            for i in range(len(metrics)):
+                axes[i].plot([x[upscale_factors[0]]["metric"][metrics[i]] for x in training_history], 
+                             label="Training")
+                
+                axes[i].plot([x[upscale_factors[0]]["metric"][metrics[i]] for x in validation_history], 
+                             label="Validation")
+                
+                axes[i].set_title(f'{metrics[i]} (x{upscale_factors[0]})')
+                axes[i].set_xlabel('Epoch')
+                axes[i].set_ylabel(metrics[i])
+
+                axes[i].set_yscale('log')
+
+                axes[i].legend()
+        else:
+            fig, axes = plt.subplots(len(metrics), len(upscale_factors), figsize=(7 * len(metrics), 5 * len(upscale_factors)))
+            
+            for j in range(len(metrics)):
+                for i in range(len(upscale_factors)):
+                    axes[j, i].plot([x[upscale_factors[i]]["metric"][metrics[j]] for x in training_history], 
+                                    label="Training")
+                    
+                    axes[j, i].plot([x[upscale_factors[i]]["metric"][metrics[j]] for x in validation_history], 
+                                    label="Validation")
+                    
+                    axes[j, i].set_title(f'{metrics[j]} (x{upscale_factors[i]})')
+                    axes[j, i].set_xlabel('Epoch')
+                    axes[j, i].set_ylabel(metrics[j])
+
+                    axes[j, i].set_yscale('log')
+
+                    axes[j, i].legend()
+
+        
+        fig.show()
 
     # Show three images for a set and predict it
     @staticmethod
