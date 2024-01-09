@@ -8,10 +8,12 @@ import os
 import time
 from typing import Any
 import torch
+import torch.nn.functional as F
 import torch.utils.data as td
 from torch.utils.tensorboard import SummaryWriter
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as LPIPS
 import torchvision
+
 import datetime
 import json
 
@@ -46,7 +48,8 @@ class StatsManager():
     detector, a denoiser, etc.
     """
 
-    def __init__(self):
+    def __init__(self, upscale_factor_list):
+        self.upscale_factor_list = upscale_factor_list
         self.init()
 
     def __repr__(self):
@@ -57,10 +60,14 @@ class StatsManager():
 
     def init(self):
         """Initialize/Reset all the statistics"""
-        self.running_loss = 0
         self.number_update = 0
 
-    def accumulate(self, loss, x=None, y=None, d=None):
+        self.running_loss = {}
+
+        for upscale_factor in self.upscale_factor_list:
+            self.running_loss[upscale_factor] = {"loss" : 0}
+
+    def accumulate(self, loss, x, y, d, upscale_factor):
         """Accumulate statistics
 
         Though the arguments x, y, d are not used in this implementation, they
@@ -68,19 +75,31 @@ class StatsManager():
         to compute and track top-5 accuracy when training a classifier.
 
         Arguments:
-            loss (float): the loss obtained during the last update.
+            loss (tuple): the loss obtained during the last update.
             x (Tensor): the input of the network during the last update.
             y (Tensor): the prediction of by the network during the last update.
             d (Tensor): the desired output for the last update.
+            upscale_factor (int): the upscale factor for the last update.
         """
-        self.running_loss += loss
         self.number_update += 1
+        print(loss, upscale_factor, self.running_loss)
+
+        for key in loss.keys():
+            if key not in self.running_loss[upscale_factor].keys():
+                self.running_loss[upscale_factor][key] = 0
+
+            self.running_loss[upscale_factor][key] += loss[key]
+
+        print(loss, upscale_factor, self.running_loss)
 
     def summarize(self):
         """Compute statistics based on accumulated ones"""
-        return self.running_loss / (self.number_update+1e-9)
 
+        for upscale_factor in self.upscale_factor_list:
+            for special_loss in self.running_loss[upscale_factor].keys():
+                self.running_loss[upscale_factor][special_loss] /= self.number_update
 
+        return self.running_loss
 
 class Model():
 
@@ -153,6 +172,23 @@ class Model():
 
         return string
 
+
+class Criterion:
+    def __init__(self) -> None:
+        pass
+
+    def compute(self, y, d, lpips, coef):
+        pass
+
+    def itemize(self, loss):
+        for key in loss.keys():
+            loss[key] = loss[key].item()
+
+    """
+    Return only the sum loss
+    """
+    def __call__(self, y, d, pips, coef):
+        return self.compute(y, d, pips, coef)["loss"]
 
 
 class Trainer(Model):
@@ -470,13 +506,23 @@ class Trainer(Model):
                     
                     prediction = self.net.forward(low_res)
 
-                    loss = self.criterion(prediction, high_res, self.lpips, self.coef)
+                    losses = self.criterion.compute(prediction, high_res, self.lpips, self.coef)
 
-                    loss.backward()
+                    total_loss = losses["loss"]
+                    total_loss.backward()
+
+                    losses = self.criterion.itemize(losses)
+
                     self.optimizer.step()
 
                     with torch.no_grad():
-                        self.stats_manager.accumulate(loss.item(), low_res, prediction, high_res)
+                        self.stats_manager.accumulate(
+                            losses, 
+                            low_res, 
+                            prediction, 
+                            high_res, 
+                            self.train_set.get_upscale_factor(i)
+                    )
         
             self.net.eval()
 
@@ -486,6 +532,8 @@ class Trainer(Model):
                 self.history.append(
                     (self.stats_manager.summarize(), self.evaluate()))
             
+            print(self.history)
+
             if self.tensor_board:
                 self.add_metrics_to_tensorboard()
                 if self.current_epoch % 5 == 0:
@@ -523,9 +571,13 @@ class Trainer(Model):
                     low_res, high_res = low_res.to(self.device), high_res.to(self.device)
                     y = self.net.forward(low_res)
 
-                    loss = self.criterion(y, high_res, self.lpips, self.coef)
+                    losses = self.criterion.compute(y, high_res, self.lpips, self.coef)
 
-                    self.stats_manager.accumulate(loss.item(), low_res, y, high_res)
+                    losses = self.criterion.itemize(losses)
+
+                    self.stats_manager.accumulate(losses, 
+                                                  low_res, y, high_res, 
+                                                  self.val_set.get_upscale_factor(i))
 
             if self.tensor_board:
                 if self.current_epoch % 5 == 0:
