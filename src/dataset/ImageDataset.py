@@ -40,9 +40,7 @@ class ImageDataset(Dataset):
         self.low_res_paths = []
         for factor in self.upscale_factors:
             self.low_res_sizes.append((int(temp[0]) // factor, int(temp[1]) // factor))
-
             self.low_res_names.append(f"{self.low_res_sizes[-1][0]}x{self.low_res_sizes[-1][1]}")
-
             self.low_res_paths.append(os.path.join(self.dir_path, self.low_res_names[-1]))
 
         self.transforms = transforms

@@ -1,21 +1,21 @@
-from src.PytorchUtil import PytorchUtil as torchUtil
+from src.utils.PytorchUtil import PytorchUtil as torchUtil
 
 from skimage import metrics
 import numpy as np
 import torch
-import math
 
 class ImageTool:
     @staticmethod
-    def compute_metrics_dataset(model, dataloader, device, verbose=False):
+    def compute_metrics_dataset(model, dataloader, upscale_index, device, verbose=False):
         batch_size = dataloader.batch_size
         len_dataset = dataloader.dataset.__len__()
         
         psnr = np.zeros(len_dataset)
         ssim = np.zeros(len_dataset)
 
-        for i, (low_res_batch, high_res_batch) in enumerate(dataloader):
+        for i, (low_res_batches, high_res_batch) in enumerate(dataloader):
             with torch.no_grad():
+                low_res_batch = low_res_batches[upscale_index]
                 low_res_batch = low_res_batch.to(device)
 
                 predicted_images_batch = model.net(low_res_batch)

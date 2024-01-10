@@ -1,7 +1,8 @@
-from src.UpscaleNN import UpscaleNN, UpscaleResidualNN
-from src.rdn import RDN
+from src.models.UpscaleNN import UpscaleNN
+from src.models.UpscaleResidualNN import UpscaleResidualNN
+from src.models.rdn import RDN
 
-import src.nntools as nt
+import src.models.nntools as nt
 
 import torch
 
@@ -20,7 +21,7 @@ class InitModel:
             else:
                 MODEL_INIT = UpscaleNN
 
-            r = MODEL_INIT(super_res_factor=super_res_factor, old_version=("old" in model_name.lower())) 
+            r = MODEL_INIT(default_upscale_factor=super_res_factor, old_version=("old" in model_name.lower())) 
         elif "rdn" in model_name.lower():
             r = RDN(C=model_hyperparameters["C"], D=model_hyperparameters["D"], 
                     G=model_hyperparameters["G"], G0=model_hyperparameters["G0"], 

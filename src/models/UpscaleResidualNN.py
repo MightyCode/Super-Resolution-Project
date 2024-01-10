@@ -1,8 +1,6 @@
 from src.models.UpscaleNN import UpscaleNN
 
 from torch import nn, concat
-from torchvision.transforms.v2 import Resize
-from torchvision import transforms
 
 class UpscaleResidualNN(UpscaleNN):
 	def __init__(self, default_upscale_factor=None, old_version=False) -> None:

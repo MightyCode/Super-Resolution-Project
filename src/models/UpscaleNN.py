@@ -16,6 +16,7 @@ class UpscaleNN(nn.Module):
 			nn.MaxPool2d(2),
 			self.DoubleConv2d(27, 54),
 		)
+		
 		self.decoder = nn.Sequential(
 			nn.ConvTranspose2d(54, 27, 2, 2),
 			self.DoubleConv2d(27,27),
@@ -24,6 +25,9 @@ class UpscaleNN(nn.Module):
 		)
 
 		self.final = nn.Conv2d(9, 3, 1)
+
+	def __str__(self) -> str:
+		return __class__.__name__ + f"(upscale_factor={self.upscale_factor})"
 
 	def set_upscale_mode(self, upscale_factor):
 		self.upscale_factor = upscale_factor

@@ -4,13 +4,14 @@ import argparse
 import platform
 import copy
 
-from src.ImageTool import ImageTool
-from src.PatchImageTool import PatchImageTool
+from src.utils.ImageTool import ImageTool
+from src.dataset.PatchImageTool import PatchImageTool
 
 from src.models.InitModel import InitModel
 
-from src.PytorchUtil import PytorchUtil as torchUtil
-from src.CarlaDataset import CarlaDatasetPatch, CarlaDataset
+from src.utils.PytorchUtil import PytorchUtil as torchUtil
+from src.dataset.ImageDataset import ImageDataset
+from src.dataset.ImageDatasetPatch import ImageDatasetPatch
 
 import torch
 import torchvision.transforms as transforms
@@ -101,7 +102,7 @@ def get_device():
 
     return device
 
-def get_dataset(dataset_name: str, upscale_factor: float, patch_size: int):
+def get_dataset(dataset_name: str, upscale_factor_list: list, patch_size: int=None):
     common_transform = transforms.Compose([
         #transforms.RandomHorizontalFlip(),
         #transforms.RandomVerticalFlip(),
@@ -110,35 +111,41 @@ def get_dataset(dataset_name: str, upscale_factor: float, patch_size: int):
 
     main_resolution = (1920, 1080)
     main_res_str = "{}x{}".format(main_resolution[0], main_resolution[1])
-    low_resolution = (int(main_resolution[0] / upscale_factor), int(main_resolution[1] / upscale_factor))
-    low_res_str = "{}x{}".format(low_resolution[0], low_resolution[1])
 
     if dataset_name.lower() == "train":
         if patch_size is None:
-            return CarlaDataset(main_res_str, low_res_str, "train", transforms=common_transform, download=True, verbose=True)
+            return ImageDataset("train", main_res_str, upscale_factor_list, transforms=common_transform, 
+                                download=True, verbose=True)
         
-        return CarlaDatasetPatch(main_res_str, low_res_str, "train", transforms=common_transform, download=True, patch_size=patch_size, verbose=True)
+        return ImageDatasetPatch("train", main_res_str, upscale_factor_list, transforms=common_transform, 
+                                 download=True, patch_size=patch_size, verbose=True)
         
     elif dataset_name.lower() == "test":
         if patch_size is None:
-            return CarlaDataset(main_res_str, low_res_str, "test", transforms=common_transform, download=True, verbose=True)
+            return ImageDataset("test", main_res_str, upscale_factor_list, transforms=common_transform, 
+                                download=True, verbose=True)
         
-        return CarlaDatasetPatch(main_res_str, low_res_str, "test", transforms=common_transform, download=True, patch_size=patch_size, verbose=True)
+        return ImageDatasetPatch("test", main_res_str, upscale_factor_list, transforms=common_transform, 
+                                 download=True, patch_size=patch_size, verbose=True)
     else:
         raise Exception("The dataset name is not correct")
 
 # Return the array of the metrics
-def compute_metrics(dataloader, method, model, device):
+def compute_metrics(dataloader, method, model, upscale_factor_list, device):
     dataset = dataloader.dataset
 
     if method["method"] == "patch":
+        upscale_factor = model.net.get_upscale_mode()
+        size = int(len(dataset) / dataset.get_number_patch_per_image(upscale_factor=upscale_factor))
+
         return PatchImageTool.compute_metrics_dataset_batched(
                         model, 
                         dataset.high_res_size, 
-                        dataset, len(dataset) // dataset.get_number_patch_per_image(), 
+                        dataset, size, 
                         device, method["batchSize"], verbose=True)
     elif method["method"] == "image":
-        return ImageTool.compute_metrics_dataset(model, dataloader, device, verbose=True)
+        upscale_index = upscale_factor_list.index(model.net.get_upscale_mode())
+        return ImageTool.compute_metrics_dataset(model, dataloader, upscale_index, device, verbose=True)
     else:
         raise Exception("The method name is not correct")
     
@@ -175,7 +182,10 @@ def compute_metrics_alternative_method(dataloader, method, altertive_method, dev
                 predicted = torchUtil.tensor_to_numpy(predicted_images[j])
                 high_res = torchUtil.tensor_to_numpy(high_res_batch[j])
                 psnr[j + index] = metrics.peak_signal_noise_ratio(high_res, predicted)
-                ssim[j + index] = metrics.structural_similarity(high_res, predicted, win_size=7, data_range=1, multichannel=True, channel_axis=2)
+
+                ssim[j + index] = metrics.structural_similarity(
+                    high_res, predicted, win_size=7, 
+                    data_range=1, multichannel=True, channel_axis=2)
 
             # if verbose and ervery 1 %
             if verbose and (index) % (len(dataset) // 100) == 0:
@@ -277,7 +287,8 @@ if __name__ == "__main__":
                             model["name"], model["weights"], model["hyperparameters"], 
                             2, torch_device)
                 except Exception as e:
-                    raise Exception("\n\nThe model {} was not created properly, dataset {} and the upscale factor {}".format(model["name"], dataset_name, upscale_factor)) from e
+                    raise Exception("\n\nThe model {} was not created properly".format(
+                        model["name"])) from e
 
 
         printf("* Using device : {}".format(torch_device))
@@ -286,20 +297,19 @@ if __name__ == "__main__":
         for dataset_name in config["dataset"]:
             printf("* * Using dataset : {}".format(dataset_name))
 
-            for upscale_factor in config["upscaleFactors"]:
-                printf("** * Using upscale factor : {}".format(upscale_factor))
+            for method in config["upscalingMethods"]:
+                printf("** * Using method : {}".format(method["method"]))
 
-                for method in config["upscalingMethods"]:
-                    printf("*** * Using method : {}".format(method["method"]))
+                patch_size = method["patchSize"] if method["method"].lower() == "patch" else None
+                dataset = get_dataset(dataset_name, config["upscaleFactors"], patch_size)
 
-                    patch_size = method["patchSize"] if method["method"].lower() == "patch" else None
+                # create an enumarate to get batches, use torch.utils.data.DataLoader
+                dataloader = data.DataLoader(dataset, batch_size=method["batchSize"], shuffle=False)
 
-                    dataset = get_dataset(dataset_name, upscale_factor, patch_size)
+                batch_size = dataloader.batch_size
 
-                    # create an enumarate to get batches, use torch.utils.data.DataLoader
-                    dataloader = data.DataLoader(dataset, batch_size=method["batchSize"], shuffle=False)
-
-                    batch_size = dataloader.batch_size
+                for upscale_factor in config["upscaleFactors"]:
+                    printf("*** * Using upscale factor : {}".format(upscale_factor))
 
                     for model in config["models"]:
                         psnr, ssim = None, None
@@ -317,12 +327,14 @@ if __name__ == "__main__":
                             nn_model = InitModel.create_model(model["name"], model["weights"], model["hyperparameters"], 
                                                 upscale_factor, torch_device)
                             
-                            psnr, ssim = compute_metrics(dataloader, method, nn_model, torch_device)
+                            psnr, ssim = compute_metrics(dataloader, method, nn_model, config["upscaleFactors"], torch_device)
 
                         if psnr is not None and ssim is not None:
                             # Show mean, var, min, max
-                            printf("-> Mean PSNR : {}, var : {}, min : {}, max : {}".format(np.mean(psnr), np.var(psnr), np.min(psnr), np.max(psnr)))
-                            printf("-> Mean SSIM : {}, var : {}, min : {}, max : {}".format(np.mean(ssim), np.var(ssim), np.min(ssim), np.max(ssim)))
+                            printf("-> Mean PSNR : {}, var : {}, min : {}, max : {}".format(
+                                np.mean(psnr), np.var(psnr), np.min(psnr), np.max(psnr)))
+                            printf("-> Mean SSIM : {}, var : {}, min : {}, max : {}".format(np.mean(
+                                ssim), np.var(ssim), np.min(ssim), np.max(ssim)))
 
                             # Add the result to result dict
                             if not prog_args.no_file:
