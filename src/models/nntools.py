@@ -60,11 +60,12 @@ class StatsManager():
 
     def init(self):
         """Initialize/Reset all the statistics"""
-        self.number_update = 0
+        self.number_update = {}
 
         self.running_loss = {}
 
         for upscale_factor in self.upscale_factor_list:
+            self.number_update[upscale_factor] = 0
             self.running_loss[upscale_factor] = {"loss" : 0}
 
     def accumulate(self, loss, x, y, d, upscale_factor):
@@ -81,7 +82,7 @@ class StatsManager():
             d (Tensor): the desired output for the last update.
             upscale_factor (int): the upscale factor for the last update.
         """
-        self.number_update += 1
+        self.number_update[upscale_factor] += 1
 
         for key in loss.keys():
             if key not in self.running_loss[upscale_factor].keys():
@@ -94,7 +95,7 @@ class StatsManager():
 
         for upscale_factor in self.upscale_factor_list:
             for special_loss in self.running_loss[upscale_factor].keys():
-                self.running_loss[upscale_factor][special_loss] /= self.number_update
+                self.running_loss[upscale_factor][special_loss] /= self.number_update[upscale_factor]
 
         return self.running_loss
 
@@ -293,7 +294,7 @@ class Trainer(Model):
         
         if use_lpips_loss:
             self.lpips = LPIPS(net_type='vgg').to(self.device)
-            self.coef = 1/1000
+            self.coef = 1/300
         else:
             self.lpips, self.coef = lambda x,y:0, 0
 
@@ -314,7 +315,8 @@ class Trainer(Model):
                 with open(self.state_path, 'r') as f:
                     state_file = f.read().strip()
                     inner_state = self.state().strip()
-                
+
+                    print(state_file, inner_state)
                     # Don't take into account the last character of the file, \n    
                     if state_file != inner_state:
                         raise ValueError(
@@ -555,7 +557,7 @@ class Trainer(Model):
                         print(f"{loss_name} : {loss}", end=" | ")
             
                     for metric_name in self.stats_manager.metrics:
-                        metric = round(current_history[category][upscale_factor]['metric'][metric_name], 1)
+                        metric = round(current_history[category][upscale_factor]['metric'][metric_name], 2)
                         print(f"{metric_name} : {metric}", end=" ")
                     
                     print()

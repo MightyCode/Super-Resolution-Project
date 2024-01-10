@@ -26,9 +26,6 @@ class UpscaleNN(nn.Module):
 
 		self.final = nn.Conv2d(9, 3, 1)
 
-	def __str__(self) -> str:
-		return __class__.__name__ + f"(upscale_factor={self.upscale_factor})"
-
 	def set_upscale_mode(self, upscale_factor):
 		self.upscale_factor = upscale_factor
 
