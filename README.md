@@ -8,6 +8,6 @@ S9 enseirb IA project for super resolution
 | Bicubic | 36.53 - 0.935 | 30.70 - 0.830 | 26.25 - 0.698  | 36.20 - 0.931 | 30.50 - 0.823 | 26.17 - 0.694  |
 | Modèle de référence | X - X | X - X | X - X | X - X | X - X | X - X |
 | Upscale residual lpips - image - x2 | 38.04 - 0.943 | 30.62 - 0.828 | 26.23 - 0.697  | 37.65 - 0.938 | 30.34 - 0.820 | 26.14 - 0.693 |
-| Upscale residual lpips - image - x2 x4 x8  | 38.79 - 0.952 | 32.07 - 0.86 | 27.37 - 0.736 | 38.73 - 0.961 | 32.47 - 0.892 | 27.96 - 0.798 |
+| Upscale residual lpips - image - x2 x4 x8  | 38.81 - 0.953 | 32.13 - 0.86 | 27.48 - 0.738 | 38.80 - 0.962 | 32.54 - 0.893 | 28.10 - 0.800 |
 | Modèle - image/Patch - x2 - Modalitées Carla  | X - X | X - X | X - X | X - X | X - X | X - X |
 | Modèle - (image/Patch) - x2 x4 x8 - Modalitées Carla | X - X | X - X | X - X | X - X | X - X | X - X |
