@@ -2,7 +2,7 @@ from src.models.UpscaleNN import UpscaleNN
 from src.models.UpscaleResidualNN import UpscaleResidualNN
 from src.models.rdn import RDN
 
-import models.Trainer as nt
+import src.models.Trainer as nt
 
 import torch
 
