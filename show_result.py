@@ -4,10 +4,8 @@ Show result on histogram (save it) of results obtain from MEGA_TEST.py
 import argparse
 import os
 import matplotlib.pyplot as plt
-import numpy as np
 import json
 import matplotlib.patches as mpatches
-import random
 
 
 """Create an argument parser that can handle
@@ -23,11 +21,12 @@ def create_arg_parser():
     parser.add_argument("-d", "--dataset", default="train", help="Dataset used, default is train")
     parser.add_argument("-u", "--upscale", default=2, help="Upscale factor, default is 2")
     parser.add_argument("-m", "--method", default="all", help="Possible methods, default is all")
-    parser.add_argument("-r", "--result", default="results/result1.json", help="Result file used, default is results/result1.json")
-    parser.add_argument("-p", "--path", default="results/showresult.png", help="Save file path, default is results/showresult.png")
+    parser.add_argument("-p", "--path", default="results/result1.json", help="Result file used, default is results/result1.json")
+    parser.add_argument("-r", "--result", default="results/showresult.png", help="Save file path, default is results/showresult.png")
     parser.add_argument("-o", "--order", action="store_true", help="Order the results")
 
     return parser
+
 
 def sort_label_metric(label_array, metric_array):
     # Combine data into a list of tuples (model, PSNR, SSIM)
@@ -41,6 +40,7 @@ def sort_label_metric(label_array, metric_array):
 
     return label_array, metric_array
 
+
 def give_order(metric_array):
     # Give the position in classement, result array is same size as metric_array
     result_array = []
@@ -51,6 +51,7 @@ def give_order(metric_array):
     # For each element in metric_array, find the position in sorted_metric_array
     for element in metric_array:
         result_array.append(sorted_metric_array.index(element))
+
 
 def get_color_name_bar(associated_model, name_separation="-image", interpolation_methods=[]):
     name_color = []
@@ -75,6 +76,7 @@ def get_color_name_bar(associated_model, name_separation="-image", interpolation
 
     return name_color, bar_color
 
+
 if __name__ == "__main__":
     parser = create_arg_parser()
     args = parser.parse_args()
@@ -83,14 +85,14 @@ if __name__ == "__main__":
     upscale = args.upscale
     method = args.method
 
-    result = args.result
     path = args.path
+    result = args.result
 
-    if not os.path.exists(result):
+    if not os.path.exists(path):
         print("Result file not found")
         exit()
 
-    with open(result) as f:
+    with open(path) as f:
         data = json.load(f)
     
     # Show an histogram with all the results
@@ -171,7 +173,7 @@ if __name__ == "__main__":
     plt.show()
 
     # Save the figure
-    fig.savefig(path)
+    fig.savefig(result)
 
     
 
