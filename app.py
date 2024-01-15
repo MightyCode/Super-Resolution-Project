@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
 
     UPSCALE_FACTOR = 2
-    mod = InitModel.create_model(NAME, PATH, {"learningRate": 0.001}, UPSCALE_FACTOR, 'cpu')
+    mod = InitModel.create_model_static(NAME, PATH, {"learningRate": 0.001}, UPSCALE_FACTOR, 'cpu')
     # Streamlit app
     st.title("Image Super resolution")
     img = get_image()

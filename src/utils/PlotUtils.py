@@ -83,8 +83,10 @@ class PlotUtils:
         if len(training_history) == 0:
             return
 
-        upscale_factors = exp.stats_manager.upscale_factor_list
+        upscale_factors = list(training_history[0].keys())
         # list of keys
+        print(upscale_factors)
+
         losses_key = list(training_history[0][upscale_factors[0]]["loss"].keys())
         number_loss = len(losses_key) + 1 if len(losses_key) > 1 else 1
 
@@ -94,11 +96,28 @@ class PlotUtils:
                 # Swap 
                 losses_key[0], losses_key[i] = losses_key[i], losses_key[0]
 
-        if len(upscale_factors) == 1:
+        print(upscale_factors)
+
+        if len(upscale_factors) == 1 and number_loss == 1:
+            fig, axes = plt.subplots(1, 1, figsize=(5, 5))
+
+            axes.plot([x[upscale_factors[0]]["loss"][losses_key[0]] for x in training_history], label="Training")
+            axes.plot([x[upscale_factors[0]]["loss"][losses_key[0]] for x in validation_history], label="Validation")
+            axes.set_title(f'Loss {losses_key[0]} (x{upscale_factors[0]})')
+            
+            axes.set_xlabel('Epoch')
+            axes.set_ylabel('Loss')
+
+            # set y axis in scientific notation
+            axes.set_yscale('log')
+
+            axes.legend()
+
+        elif len(upscale_factors) == 1:
             fig, axes = plt.subplots(number_loss, 1, figsize=(5, 5 * number_loss))
 
             for i in range(number_loss):
-                if i == 0 :
+                if i == 0 and number_loss > 1:
                     for i_p in range(number_loss - 1):
                         axes[i].plot([x[upscale_factors[0]]["loss"][losses_key[i_p]] for x in training_history], 
                                      label=("Train " + losses_key[i_p]))
@@ -107,9 +126,10 @@ class PlotUtils:
                     
                     axes[i].set_title(f'Cumulated loss (x{upscale_factors[0]})')
                 else:
-                    loss_title = "total" if losses_key[i - 1] == "loss" else losses_key[i - 1]
-                    axes[i].plot([x[upscale_factors[0]]["loss"][losses_key[i-1]] for x in training_history], label="Training")
-                    axes[i].plot([x[upscale_factors[0]]["loss"][losses_key[i-1]] for x in validation_history], label="Validation")
+                    index = i - 1 if number_loss > 1 else i
+                    loss_title = "total" if losses_key[index] == "loss" else losses_key[index]
+                    axes[i].plot([x[upscale_factors[0]]["loss"][losses_key[index]] for x in training_history], label="Training")
+                    axes[i].plot([x[upscale_factors[0]]["loss"][losses_key[index]] for x in validation_history], label="Validation")
                     axes[i].set_title(f'Loss {loss_title} (x{upscale_factors[0]})')
                 
                 axes[i].set_xlabel('Epoch')
@@ -119,14 +139,28 @@ class PlotUtils:
                 axes[i].set_yscale('log')
 
                 axes[i].legend()
-            
+        elif len(losses_key) == 1:
+            fig, axes = plt.subplots(len(upscale_factors), 1, figsize=(5 * len(upscale_factors), 5))
+
+            for i in range(len(upscale_factors)):
+                axes[i].plot([x[upscale_factors[i]]["loss"][losses_key[0]] for x in training_history], label="Training")
+                axes[i].plot([x[upscale_factors[i]]["loss"][losses_key[0]] for x in validation_history], label="Validation")
+                axes[i].set_title(f'Loss {losses_key[0]} (x{upscale_factors[i]})')
+                
+                axes[i].set_xlabel('Epoch')
+                axes[i].set_ylabel('Loss')
+
+                # set y axis in scientific notation
+                axes[i].set_yscale('log')
+
+                axes[i].legend()
         else:
             # Plot the loss curves
             fig, axes = plt.subplots( number_loss, len(upscale_factors), figsize=(5 * len(upscale_factors), 5 * number_loss))
 
             for j in range(number_loss):
                 for i in range(len(upscale_factors)):
-                    if j == 0:
+                    if j == 0 and number_loss > 1:
                         for i_p in range(number_loss - 1):
                             axes[j, i].plot([x[upscale_factors[j]]["loss"][losses_key[i_p]] for x in training_history], 
                                             label="Train " + losses_key[i_p])
@@ -135,9 +169,12 @@ class PlotUtils:
                         
                         axes[j, i].set_title(f'Cumulated loss (x{upscale_factors[j]})')
                     else:
-                        loss_title = "total" if losses_key[j - 1] == "loss" else losses_key[j - 1]
-                        axes[j, i].plot([x[upscale_factors[i]]["loss"][losses_key[j - 1]] for x in training_history], label="Training")
-                        axes[j, i].plot([x[upscale_factors[i]]["loss"][losses_key[j - 1]] for x in validation_history], label="Validation")
+                        index = j - 1 if number_loss > 1 else j
+
+                        print(losses_key, index)
+                        loss_title = "total" if losses_key[index] == "loss" else losses_key[index]
+                        axes[j, i].plot([x[upscale_factors[i]]["loss"][losses_key[index]] for x in training_history], label="Training")
+                        axes[j, i].plot([x[upscale_factors[i]]["loss"][losses_key[index]] for x in validation_history], label="Validation")
                         axes[j, i].set_title(f'Loss {loss_title} (x{upscale_factors[i]})')
                     
                     axes[j, i].set_xlabel('Epoch')
@@ -152,10 +189,10 @@ class PlotUtils:
 
         # Plot the metrics 
 
-        metrics = exp.stats_manager.metrics
+        metrics = list(training_history[0][upscale_factors[0]]["metric"].keys())
 
         if len(upscale_factors) == 1:
-            fig, axes = plt.subplots(len(metrics), 1, figsize=(7 * len(metrics), 5))
+            fig, axes = plt.subplots(len(metrics), 1, figsize=(10, 7 * len(metrics)))
 
             for i in range(len(metrics)):
                 axes[i].plot([x[upscale_factors[0]]["metric"][metrics[i]] for x in training_history], 
@@ -355,7 +392,7 @@ class PlotUtils:
     def show_low_high_predicted(low_image_tensors, high_image_tensor, predicted_image_tensor, name=""):
         assert len(low_image_tensors) == len(high_image_tensor) == len(predicted_image_tensor)
 
-        _, axes = plt.subplots(len(low_image_tensors), 3, figsize=(30, 5 * len(low_image_tensors)))
+        _, axes = plt.subplots(len(low_image_tensors), 3, figsize=(30, 7 * len(low_image_tensors)))
 
         if len(low_image_tensors) == 1:
             with torch.no_grad():

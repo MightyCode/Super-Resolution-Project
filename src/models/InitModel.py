@@ -8,8 +8,8 @@ import torch
 
 class InitModel:
     @staticmethod
-    def create_model(
-        model_name: str, model_weights_path : str, model_hyperparameters: dict, 
+    def create_model(model_name: str,
+                     model_hyperparameters: dict, 
         super_res_factor: float, device) -> torch.nn.Module:
 
         # to lower
@@ -33,6 +33,16 @@ class InitModel:
             raise Exception("The model name is not correct")
         
         r.to(device)
+
+        return r
+
+    @staticmethod
+    def create_model_static(
+        model_name: str, model_weights_path : str, 
+        model_hyperparameters: dict, 
+        super_res_factor: float, device) -> torch.nn.Module:
+
+        r = InitModel.create_model(model_name, model_hyperparameters, super_res_factor, device)
 
         exp = nt.Model(r, device, model_weights_path)
 

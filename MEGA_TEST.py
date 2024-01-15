@@ -283,7 +283,7 @@ if __name__ == "__main__":
         for model in config["models"]:
             if model["type"] != "alternative":
                 try:
-                    nn_model = InitModel.create_model(
+                    nn_model = InitModel.create_model_static(
                             model["name"], model["weights"], model["hyperparameters"], 
                             2, torch_device)
                 except Exception as e:
@@ -324,7 +324,7 @@ if __name__ == "__main__":
                                                                                 torch_device, verbose=True)
                         else:
                             print ("**** * Using neural network model : {}".format(model["name"]))
-                            nn_model = InitModel.create_model(model["name"], model["weights"], model["hyperparameters"], 
+                            nn_model = InitModel.create_model_static(model["name"], model["weights"], model["hyperparameters"], 
                                                 upscale_factor, torch_device)
                             
                             psnr, ssim = compute_metrics(dataloader, method, nn_model, config["upscaleFactors"], torch_device)

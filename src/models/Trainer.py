@@ -87,6 +87,8 @@ class Trainer(Model):
     """
 
     INFO_VERSION = 1.0
+    RESULTS_PATH = "results/"
+
     TRAINING = "training"
     VALIDATION = "validation"
 
@@ -135,7 +137,9 @@ class Trainer(Model):
         self.optimizer = optimizer
         self.stats_manager = stats_manager
         self.device = device
-        self.output_dir = output_dir
+
+        self.output_path = Trainer.RESULTS_PATH + output_dir
+        
         self.perform_validation_during_training = perform_validation_during_training
 
         # Initialize history
@@ -153,17 +157,17 @@ class Trainer(Model):
             self.lpips, self.coef = lambda x,y:0, 0
 
         # Define checkpoint paths
-        if output_dir is not None:
-            os.makedirs(output_dir, exist_ok=True)
-            self.checkpoint_path = os.path.join(output_dir, "checkpoint.pth.tar")
-            self.state_path = os.path.join(output_dir, "state.txt")
-            self.info_path = os.path.join(output_dir, "info.json")
+        if self.output_path is not None:
+            os.makedirs(self.output_path, exist_ok=True)
+            self.checkpoint_path = os.path.join(self.output_path, "checkpoint.pth.tar")
+            self.state_path = os.path.join(self.output_path, "state.txt")
+            self.info_path = os.path.join(self.output_path, "info.json")
 
         # Transfer all local arguments/variables into attributes
         locs = {k: v for k, v in locals().items() if k != 'self'}
         self.__dict__.update(locs)
 
-        if output_dir is not None:
+        if self.output_path is not None:
             # Load checkpoint and check compatibility
             if os.path.isfile(self.state_path):
                 with open(self.state_path, 'r') as f:
@@ -237,7 +241,7 @@ class Trainer(Model):
 
     def save(self):
         """Saves the experiment on disk, i.e, create/update the last checkpoint."""
-        if self.output_dir is not None:
+        if self.output_path is not None:
             # Save checkpoint
             torch.save(self.checkpoint_dict(), self.checkpoint_path)
 
@@ -255,6 +259,9 @@ class Trainer(Model):
         self.net.load_state_dict(checkpoint['Net'])
         self.optimizer.load_state_dict(checkpoint['Optimizer'])
         self.history = checkpoint['History']
+
+
+        print(checkpoint)
 
         # The following loops are used to fix a bug that was
         # discussed here: https://github.com/pytorch/pytorch/issues/2830
@@ -335,7 +342,7 @@ class Trainer(Model):
             for i, low_res in enumerate(self.x_tensorboard):
                 upscale = self.train_set.get_upscale_factor(i)
 
-                self.writer = SummaryWriter(self.output_dir)
+                self.writer = SummaryWriter(self.output_path)
                 self.net.set_upscale_mode(upscale)
                 self.writer.add_graph(self.net, low_res.to(self.device))
 
