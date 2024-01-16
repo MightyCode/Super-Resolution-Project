@@ -90,7 +90,16 @@ class ImageDataset(Dataset):
                 raise KeyError(f"{self.high_res_name} dataset link not found")
             
     def open_image(self, path:str):
-        return cv2.imread(path)
+        if path.endswith(".png"):
+            return cv2.imread(path, cv2.IMREAD_UNCHANGED)
+        elif path.endswith(".npy"):
+            return np.load(path)
+        
+    def save_image(self, path:str, image):
+        if path.endswith(".png"):
+            cv2.imwrite(path, image)
+        elif path.endswith(".npy"):
+            np.save(path, image)
 
     def unzip_file(self, file_path: str, extract_path: str):
         with zipfile.ZipFile(file_path, 'r') as zip_ref:
@@ -141,17 +150,29 @@ class ImageDataset(Dataset):
         for img in images:
             source_img = os.path.join(source, img)
             dest_img = os.path.join(dir_dest, img)
+            self.resize_image(source_img, dest_img, new_res_size)
+
             try:
-                self.resize_image(source_img, dest_img, new_res_size)
+                pass
             except:
                 print(f"Broken Image ({img}), skipping it...")
-                os.remove(source_img)
+                return
+                #os.remove(source_img)
         self.print("Done!")
 
     def resize_image(self, source:str, dest:str, new_res_size) -> None:
         img = self.open_image(source)
-        img = cv2.resize(img, new_res_size)
-        cv2.imwrite(dest, img)
+        print(img.shape)
+
+        # our "image" can have multiple channels, so we need to resize each channel
+        result = np.zeros(( new_res_size[1], new_res_size[0], img.shape[2]), dtype=np.uint8)
+
+        for i in range(img.shape[2]):
+            result[:, :, i] = cv2.resize(img[:, :, i], new_res_size)
+
+        print(dest)
+        raise Exception("Stop")
+        self.save_image(dest, result)
 
     def _move_images(self, images:list, source:str, dest:str) -> None:
         for img in images:

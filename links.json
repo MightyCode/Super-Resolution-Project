@@ -5,10 +5,40 @@
 			"256x256":"https://drive.google.com/uc?export=download&id=16cXZ2etHDMrgXSXtLlZ5HuPh7e0KSkVk"
 		},
 		"train" : {
-			"1920x1080":"https://drive.google.com/uc?export=download&id=1GYjim2wyqmsKNNSvS_TQ6lHwqOzt_kwN"
+			"1920x1080":"https://drive.google.com/uc?export=download&id=1GYjim2wyqmsKNNSvS_TQ6lHwqOzt_kwN",
+			"channel" : {
+				"r" : 0,
+				"g" : 1,
+				"b" : 2
+			}
 		},
 		"test" : {
-			"1920x1080":"https://drive.google.com/uc?export=download&id=1i3WJpqWInsA4bl0sPEmxX4b5BeDK9he2"
+			"1920x1080":"https://drive.google.com/uc?export=download&id=1i3WJpqWInsA4bl0sPEmxX4b5BeDK9he2",
+			"channel" : {
+				"r" : 0,
+				"g" : 1,
+				"b" : 2
+			}
+		},
+		"train_full_channel" : {
+			"1920x1080":"https://drive.google.com/uc?export=download&id=1gQ6b3Bx6RRTX7qAYPbghqO8aJt7rNbIO",
+			"channel" : {
+				"r" : 0,
+				"g" : 1,
+				"b" : 2,
+				"d" : 3,
+				"s" : 4 
+			}
+		},
+		"test_full_channel" : {
+			"1920x1080":"https://drive.google.com/uc?export=download&id=190-K3CRER3tKBya2acENxYp8jjBPqYFF",
+			"channel" : {
+				"r" : 0,
+				"g" : 1,
+				"b" : 2,
+				"d" : 3,
+				"s" : 4
+			}
 		}
 	}
 }
