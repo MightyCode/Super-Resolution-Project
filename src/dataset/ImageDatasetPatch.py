@@ -4,18 +4,18 @@ from .PatchImageTool import PatchImageTool
 import os
 from typing import Any
 import math
-import torch
 
 class ImageDatasetPatch(ImageDataset):
     def __init__(self, 
                  dataset_name: str = "train",
                  high_res:str = "1920x1080", 
                  upscale_factors: list = [2], 
+                 channels: list = ["r", "g", "b"],
                  transforms = None, 
                  download:bool = False, 
                  patch_size=16,
                  verbose:bool = True):
-        super().__init__(dataset_name, high_res, upscale_factors, transforms, download, verbose=verbose)
+        super().__init__(dataset_name, high_res, upscale_factors, channels, transforms, download, verbose=verbose)
         self.patch_sizes = []
         for upscale_factor in self.upscale_factors:
             self.patch_sizes.append(patch_size // upscale_factor)
@@ -34,7 +34,6 @@ class ImageDatasetPatch(ImageDataset):
             self.number_patch_heights.append(math.ceil(self.low_res_sizes[i][1] / self.patch_sizes[i]))
 
             self.number_patch_per_upscale.append(self.number_patch_widths[-1] * self.number_patch_heights[-1])
-
         
         self.total_number_patch = self.number_patch_per_upscale[0]
 
@@ -72,6 +71,8 @@ class ImageDatasetPatch(ImageDataset):
 
         if self.transforms is not None:
             image_high_res = self.transforms(image_high_res)
+        
+        image_high_res = self.filter_channels_to_image(image_high_res, invert=True)
 
         patchs_low_res = []
 
@@ -80,6 +81,7 @@ class ImageDatasetPatch(ImageDataset):
             
             if self.transforms is not None:
                 image_low_res = self.transforms(image_low_res)
+                
 
             number_patch_width = self.number_patch_widths[i]
             number_patch_height = self.number_patch_heights[i]
@@ -118,6 +120,8 @@ class ImageDatasetPatch(ImageDataset):
         if self.transforms is not None:
             image_low_res = self.transforms(image_low_res)
             image_high_res = self.transforms(image_high_res)
+
+        image_high_res = self.filter_channels_to_image(image_high_res, invert=True)
 
         patches_low_res = PatchImageTool.get_patchs_from_image(
             image_low_res, self.patch_sizes[upscale_index], 

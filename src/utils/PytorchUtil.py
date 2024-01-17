@@ -14,6 +14,7 @@ class PytorchUtil:
         return PytorchUtil.numpy_to_image(PytorchUtil.tensor_to_numpy(tensor), color_mode)
 
     def numpy_to_image(numpy, color_mode=cv2.COLOR_BGR2RGB):
+        print(numpy.shape)
         return cv2.cvtColor(numpy, color_mode)
 
     def numpy_to_tensor(numpy):

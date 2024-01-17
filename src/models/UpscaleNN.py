@@ -3,14 +3,14 @@ from torchvision.transforms.v2 import Resize
 from torchvision import transforms
 
 class UpscaleNN(nn.Module):
-	def __init__(self, default_upscale_factor=None, old_version=False) -> None:
+	def __init__(self, default_upscale_factor=None, num_channel=3, old_version=False) -> None:
 		super().__init__()
 		self.upscale_factor = default_upscale_factor
 
 		self.old_version = old_version
 
 		self.encoder = nn.Sequential(
-			self.DoubleConv2d(3, 9),
+			self.DoubleConv2d(num_channel, 9),
 			nn.MaxPool2d(2),
 			self.DoubleConv2d(9, 27),
 			nn.MaxPool2d(2),

@@ -3,11 +3,10 @@ from src.models.UpscaleNN import UpscaleNN
 from torch import nn, concat
 
 class UpscaleResidualNN(UpscaleNN):
-	def __init__(self, default_upscale_factor=None, old_version=False) -> None:
+	def __init__(self, default_upscale_factor=None, num_channel=3, old_version=False) -> None:
 		super().__init__(default_upscale_factor, old_version=old_version)
-		
 		self.encod1 = nn.Sequential(
-			self.DoubleConv2d(3, 16),
+			self.DoubleConv2d(num_channel, 16),
 			nn.BatchNorm2d(16)
 		)
 		self.encod2 = nn.Sequential(
@@ -36,7 +35,14 @@ class UpscaleResidualNN(UpscaleNN):
 
 	
 	def forward(self, X):
+		#print(X.shape)
 		X_U = self.upscale_image(X)
+
+		# take only the first 3 channels
+		if len(X_U.shape) == 4:
+			X_U_resid = X_U[:, :3, :, :]
+		else:
+			X_U_resid = X_U[:3, :, :]
 
 		X_1 = self.encod1(X_U)
 
@@ -48,4 +54,4 @@ class UpscaleResidualNN(UpscaleNN):
 		result = self.decod2(concat((X_2, result), dim = 1))
 		result = self.decod3(concat((X_1, result), dim = 1))
 		
-		return (result + X_U).clamp(0,1)
+		return (result + X_U_resid).clamp(0,1)

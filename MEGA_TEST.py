@@ -84,7 +84,6 @@ def create_test_config() -> dict:
         ]
     }
 
-
 def get_device():
     device = None
     if platform.system() == 'Windows':  # Check if the OS is Windows
@@ -148,8 +147,6 @@ def compute_metrics(dataloader, method, model, upscale_factor_list, device):
         return ImageTool.compute_metrics_dataset(model, dataloader, upscale_index, device, verbose=True)
     else:
         raise Exception("The method name is not correct")
-    
-
     
 def compute_metrics_alternative_method(dataloader, method, altertive_method, device, verbose=False):
     dataset = dataloader.dataset

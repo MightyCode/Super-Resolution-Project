@@ -21,7 +21,9 @@ class InitModel:
             else:
                 MODEL_INIT = UpscaleNN
 
-            r = MODEL_INIT(default_upscale_factor=super_res_factor, old_version=("old" in model_name.lower())) 
+            r = MODEL_INIT(default_upscale_factor=super_res_factor, 
+                           num_channel=len(model_hyperparameters["channels"]), 
+                           old_version=("old" in model_name.lower())) 
         elif "rdn" in model_name.lower():
             r = RDN(C=model_hyperparameters["C"], D=model_hyperparameters["D"], 
                     G=model_hyperparameters["G"], G0=model_hyperparameters["G0"], 

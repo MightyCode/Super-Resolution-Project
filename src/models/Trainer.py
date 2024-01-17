@@ -95,7 +95,6 @@ class Trainer(Model):
     def __init__(self, net, train_set, val_set, optimizer, stats_manager: StatsManager, device, criterion,
                  output_dir=None, batch_size=16, perform_validation_during_training=False, 
                  tensor_board=False, use_lpips_loss=True):
-
         self.net = net
         self.train_set = train_set
         self.val_set = val_set
@@ -259,9 +258,6 @@ class Trainer(Model):
         self.net.load_state_dict(checkpoint['Net'])
         self.optimizer.load_state_dict(checkpoint['Optimizer'])
         self.history = checkpoint['History']
-
-
-        print(checkpoint)
 
         # The following loops are used to fix a bug that was
         # discussed here: https://github.com/pytorch/pytorch/issues/2830

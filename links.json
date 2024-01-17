@@ -6,23 +6,23 @@
 		},
 		"train" : {
 			"1920x1080":"https://drive.google.com/uc?export=download&id=1GYjim2wyqmsKNNSvS_TQ6lHwqOzt_kwN",
-			"channel" : {
-				"r" : 0,
+			"channels" : {
+				"r" : 2,
 				"g" : 1,
-				"b" : 2
+				"b" : 0
 			}
 		},
 		"test" : {
 			"1920x1080":"https://drive.google.com/uc?export=download&id=1i3WJpqWInsA4bl0sPEmxX4b5BeDK9he2",
-			"channel" : {
-				"r" : 0,
+			"channels" : {
+				"r" : 2,
 				"g" : 1,
-				"b" : 2
+				"b" : 0
 			}
 		},
 		"train_full_channel" : {
 			"1920x1080":"https://drive.google.com/uc?export=download&id=1gQ6b3Bx6RRTX7qAYPbghqO8aJt7rNbIO",
-			"channel" : {
+			"channels" : {
 				"r" : 0,
 				"g" : 1,
 				"b" : 2,
@@ -32,7 +32,7 @@
 		},
 		"test_full_channel" : {
 			"1920x1080":"https://drive.google.com/uc?export=download&id=190-K3CRER3tKBya2acENxYp8jjBPqYFF",
-			"channel" : {
+			"channels" : {
 				"r" : 0,
 				"g" : 1,
 				"b" : 2,

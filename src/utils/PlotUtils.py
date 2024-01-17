@@ -54,7 +54,8 @@ class PlotUtils:
 
                 index_low_res_patch = np.random.randint(len(low_res_patches))
                 
-                low_res_images.append(low_res_patches[index_low_res_patch])
+                low_res_images.append(
+                    dataset.filter_channels_to_image(low_res_patches[index_low_res_patch]))
                 high_res_images.append(high_res)
                 # torch to int
                 upscale_factors.append(dataset.get_upscale_factor(index_low_res_patch))
@@ -64,13 +65,13 @@ class PlotUtils:
 
                 index_low_res_patch = np.random.randint(len(low_res_patches))
                 
-                low_res_images.append(low_res_patches[index_low_res_patch])
+                low_res_images.append(
+                    dataset.filter_channels_to_image(low_res_patches[index_low_res_patch]))
                 high_res_images.append(high_res)
                 upscale_factors.append(dataset.get_upscale_factor(index_low_res_patch))
         
         PlotUtils.show_high_low_res_images(low_res_images, high_res_images, upscales=upscale_factors,
                                                width=width, name=dataset.name())
-
 
     # plot Plot the loss, psnr and ssim curves in the second row
     @staticmethod
@@ -85,7 +86,6 @@ class PlotUtils:
 
         upscale_factors = list(training_history[0].keys())
         # list of keys
-        print(upscale_factors)
 
         losses_key = list(training_history[0][upscale_factors[0]]["loss"].keys())
         number_loss = len(losses_key) + 1 if len(losses_key) > 1 else 1
@@ -95,8 +95,6 @@ class PlotUtils:
             if (losses_key[i] == "loss") and i > 0:
                 # Swap 
                 losses_key[0], losses_key[i] = losses_key[i], losses_key[0]
-
-        print(upscale_factors)
 
         if len(upscale_factors) == 1 and number_loss == 1:
             fig, axes = plt.subplots(1, 1, figsize=(5, 5))
@@ -171,7 +169,6 @@ class PlotUtils:
                     else:
                         index = j - 1 if number_loss > 1 else j
 
-                        print(losses_key, index)
                         loss_title = "total" if losses_key[index] == "loss" else losses_key[index]
                         axes[j, i].plot([x[upscale_factors[i]]["loss"][losses_key[index]] for x in training_history], label="Training")
                         axes[j, i].plot([x[upscale_factors[i]]["loss"][losses_key[index]] for x in validation_history], label="Validation")
@@ -226,7 +223,6 @@ class PlotUtils:
                     axes[j, i].set_yscale('log')
 
                     axes[j, i].legend()
-
         
         fig.show()
 
@@ -253,12 +249,15 @@ class PlotUtils:
 
                 chosen_upscale = 0
                 low_res = low_res_patches[chosen_upscale]
+
                 model.net.set_upscale_mode(chosen_upscale)
 
                 predicted_res = model.net(low_res.to(device))[0]
 
+                low_res = dataset.filter_channels_to_image(low_res)
                 low_res_image = torchUtil.tensor_to_image(low_res)
                 high_res_image = torchUtil.tensor_to_image(high_res)
+                
                 predicted_res_image = torchUtil.tensor_to_image(predicted_res)
 
             axes[0].set_title(f'Low res (x{dataset.get_upscale_factor(low_res_patches)}): {low_res_image.shape}')
@@ -284,16 +283,19 @@ class PlotUtils:
                     print("Chosen index", index)
                 
                 chosen_upscale = i % dataset.number_upscale()
-                print(i, chosen_upscale, dataset.number_upscale())
+
                 low_res = low_res_patches[chosen_upscale]
+
                 upscale = dataset.get_upscale_factor(chosen_upscale)
 
                 model.net.set_upscale_mode(upscale)
 
                 predicted_res = model.net(low_res.to(device))[0]
 
+                low_res = dataset.filter_channels_to_image(low_res)
                 low_res_image = torchUtil.tensor_to_image(low_res)
                 high_res_image = torchUtil.tensor_to_image(high_res)
+
                 predicted_res_image = torchUtil.numpy_to_image(torchUtil.tensor_to_numpy(predicted_res))
 
                 axes[i, 0].set_title(f'Low res (x{upscale}): {low_res_image.shape}')
