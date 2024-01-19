@@ -1,6 +1,8 @@
 from .ImageDataset import ImageDataset
 from .PatchImageTool import PatchImageTool
 
+from src.utils.PytorchUtil import PytorchUtil as torchUtil
+
 import os
 from typing import Any
 import math
@@ -8,21 +10,21 @@ import math
 class ImageDatasetPatch(ImageDataset):
     def __init__(self, 
                  dataset_name: str = "train",
-                 high_res:str = "1920x1080", 
+                 hr_name:str = "1920x1080", 
                  upscale_factors: list = [2], 
                  channels: list = ["r", "g", "b"],
                  transforms = None, 
                  download:bool = False, 
                  patch_size=16,
                  verbose:bool = True):
-        super().__init__(dataset_name, high_res, upscale_factors, channels, transforms, download, verbose=verbose)
+        super().__init__(dataset_name, hr_name, upscale_factors, channels, transforms, download, verbose=verbose)
         self.patch_sizes = []
         for upscale_factor in self.upscale_factors:
             self.patch_sizes.append(patch_size // upscale_factor)
             #self.patch_sizes.append(patch_size)
 
-        self.number_patch_heights = []
-        self.number_patch_widths = []
+        self.number_patch_in_height = []
+        self.number_patch_in_width = []
 
         self.number_patch_per_upscale = []
 
@@ -30,10 +32,10 @@ class ImageDatasetPatch(ImageDataset):
         
         # If the image is not divisible by the patch size, we add a patch to the right and to the bottom
         for i in range(len(self.upscale_factors)):
-            self.number_patch_widths.append(math.ceil(self.low_res_sizes[i][0] / self.patch_sizes[i]))
-            self.number_patch_heights.append(math.ceil(self.low_res_sizes[i][1] / self.patch_sizes[i]))
+            self.number_patch_in_width.append(math.ceil(self.lr_sizes[i][0] / self.patch_sizes[i]))
+            self.number_patch_in_height.append(math.ceil(self.lr_sizes[i][1] / self.patch_sizes[i]))
 
-            self.number_patch_per_upscale.append(self.number_patch_widths[-1] * self.number_patch_heights[-1])
+            self.number_patch_per_upscale.append(self.number_patch_in_width[-1] * self.number_patch_in_height[-1])
         
         self.total_number_patch = self.number_patch_per_upscale[0]
 
@@ -44,19 +46,20 @@ class ImageDatasetPatch(ImageDataset):
         return super().__len__() * self.total_number_patch
 
     def get_number_patch_per_image(self, upscale_factor=None, upscale_index=None):
-        if upscale_index is not None:
-            return self.number_patch_per_upscale[upscale_index]
-        else:
+        if upscale_index is None:
             return self.number_patch_per_upscale[self.upscale_factors.index(upscale_factor)]
+        
+        return self.number_patch_per_upscale[upscale_index]
+            
     
     def get_total_number_patch_per_image(self):
         return self.total_number_patch
 
     def get_patch_size(self, upscale_factor=None, upscale_index=None):
-        if upscale_index is not None:
-            return self.patch_sizes[upscale_index]
+        if upscale_index is None:
+            return self.patch_sizes[self.upscale_factors.index(upscale_factor)]
         
-        return self.patch_sizes[self.upscale_factors.index(upscale_factor)]
+        return self.patch_sizes[upscale_index] 
 
     """
     Return the patch for all sub size
@@ -67,39 +70,42 @@ class ImageDatasetPatch(ImageDataset):
         image_index = index_patch // (self.total_number_patch)
         part_on_image = index_patch % (self.total_number_patch)
 
-        image_high_res = self.open_image(os.path.join(self.high_res_path, self.images[image_index]))
+        hr_data_np = self.load_data_from_path(os.path.join(self.hr_path, self.images[image_index]))
 
-        if self.transforms is not None:
-            image_high_res = self.transforms(image_high_res)
+        if self.transforms is None:
+            hr_data_tensor = torchUtil.numpy_to_tensor(hr_data_np)
+        else:
+            hr_data_tensor = self.transforms(hr_data_np)
         
-        image_high_res = self.filter_channels_to_image(image_high_res, invert=True)
+        hr_image_torch = self.filter_channels_to_image(hr_data_tensor)
 
-        patchs_low_res = []
+        lr_data_patch_tensors = []
 
         for i, upscale_factor in enumerate(self.upscale_factors):
-            image_low_res = self.open_image(os.path.join(self.low_res_paths[i], self.images[image_index]))
+            lr_data_np = self.load_data_from_path(os.path.join(self.lr_paths[i], self.images[image_index]))
             
-            if self.transforms is not None:
-                image_low_res = self.transforms(image_low_res)
-                
+            if self.transforms is None:
+                lr_data_tensor = torchUtil.numpy_to_tensor(lr_data_np)
+            else:
+                lr_data_tensor = self.transforms(lr_data_np)
 
-            number_patch_width = self.number_patch_widths[i]
-            number_patch_height = self.number_patch_heights[i]
+            number_patch_width = self.number_patch_in_width[i]
+            number_patch_height = self.number_patch_in_height[i]
 
-            patchs_low_res.append(
+            lr_data_patch_tensors.append(
                 PatchImageTool.get_patch_from_image_index(
-                    image_low_res, 
+                    lr_data_tensor, 
                     part_on_image, self.patch_sizes[i], 
                     w=number_patch_width, h=number_patch_height)
             )
             
-        patch_high_res = PatchImageTool.get_patch_from_image_index(
-            image_high_res, 
+        hr_img_patch_tensor = PatchImageTool.get_patch_from_image_index(
+            hr_image_torch, 
             part_on_image, self.patch_sizes[0] * self.upscale_factors[0],
             w=number_patch_width, h=number_patch_height)
 
         #upscale to torch
-        return patchs_low_res, patch_high_res
+        return lr_data_patch_tensors, hr_img_patch_tensor
 
 
     def get_all_patch_for_image(self, index_patch, upscale_factor=None, upscale_index=None):
@@ -110,30 +116,32 @@ class ImageDatasetPatch(ImageDataset):
 
         index_patch = self.check_index(index_patch)
 
-        number_patch_width = self.number_patch_widths[upscale_index]
-        number_patch_height = self.number_patch_heights[upscale_index]
+        number_patch_width = self.number_patch_in_width[upscale_index]
+        number_patch_height = self.number_patch_in_height[upscale_index]
 
         image_index = index_patch // (self.total_number_patch)
-        image_low_res = self.open_image(os.path.join(self.low_res_paths[upscale_index], self.images[image_index]))
-        image_high_res = self.open_image(os.path.join(self.high_res_path, self.images[image_index]))
+        lr_data_np = self.load_data_from_path(os.path.join(self.lr_paths[upscale_index], self.images[image_index]))
+        hr_data_np = self.load_data_from_path(os.path.join(self.hr_path, self.images[image_index]))
 
-        if self.transforms is not None:
-            image_low_res = self.transforms(image_low_res)
-            image_high_res = self.transforms(image_high_res)
+        if self.transforms is None:
+            lr_data_tensor = torchUtil.numpy_to_tensor(lr_data_np)
+            hr_data_tensor = torchUtil.numpy_to_tensor(hr_data_np)
+        else:
+            lr_data_tensor = self.transforms(lr_data_np)
+            hr_data_tensor = self.transforms(hr_data_np)
 
-        image_high_res = self.filter_channels_to_image(image_high_res, invert=True)
+        hr_img_tensor = self.filter_channels_to_image(hr_data_tensor)
 
-        patches_low_res = PatchImageTool.get_patchs_from_image(
-            image_low_res, self.patch_sizes[upscale_index], 
+        lr_data_patch_tensors: list = PatchImageTool.get_patchs_from_image(
+            lr_data_tensor, self.patch_sizes[upscale_index], 
                 w=number_patch_width, h=number_patch_height)
 
-        patches_high_res = PatchImageTool.get_patchs_from_image(
-            image_high_res, 
+        hr_img_patch_tensors: list = PatchImageTool.get_patchs_from_image(
+            hr_img_tensor, 
             self.patch_sizes[upscale_index] * self.upscale_factors[upscale_index], 
             w=number_patch_width, h=number_patch_height)
     
-    
-        return patches_low_res, patches_high_res
+        return lr_data_patch_tensors, hr_img_patch_tensors
     
     def get_index_for_image(self, index_patch):
         index_patch = index_patch // (self.total_number_patch)
@@ -157,8 +165,8 @@ class ImageDatasetPatch(ImageDataset):
         elif upscale_index is None: 
             upscale_index = self.upscale_factor_to_index(upscale_factor)
             
-        number_patch_width = self.number_patch_widths[upscale_index]
-        number_patch_height = self.number_patch_heights[upscale_index]
+        number_patch_width = self.number_patch_in_width[upscale_index]
+        number_patch_height = self.number_patch_in_height[upscale_index]
 
         return (number_patch_height * self.patch_size, number_patch_width * self.patch_size)
     
@@ -171,7 +179,7 @@ if __name__ == "__main__":
     import numpy as np
 
     lr = ImageDatasetPatch(dataset_name="train", 
-                           high_res="1920x1080",  
+                           hr_name="1920x1080",  
                             upscale_factors=[2, 4, 8],
                            transforms = torchvision.transforms.ToTensor(), 
                            download=False)

@@ -22,7 +22,8 @@ class Model():
                 self.load_checkpoint_dict(checkpoint)
                 del checkpoint
         elif output_dir is not None:
-            raise ValueError("Cannot find the weights file.")
+            raise ValueError("Cannot find the weights file. " + str(output_dir))
+            
         
 
     def __call__(self, X):

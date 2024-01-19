@@ -44,7 +44,7 @@ if not os.path.exists('resources'):
 
 def create_test_config() -> dict:
     return {
-        "resultNameFile" : "result1",
+        "resultNameFile" : "result",
         "models" : [
             {
                 "name" : "upscale",
@@ -69,12 +69,13 @@ def create_test_config() -> dict:
         ],
         "dataset" : ["train", "test"],
         "upscaleFactors" : [
-            1.5, 2, 3, 4, 6, 8
+             2, 4, 8
         ],
+        "channels" : ["b", "g", "r"],
         "upscalingMethods" : [
             {
                 "method" : "patch",
-                "patchSize" : 32,
+                "patchSize" : 256,
                 "batchSize" : 2048
             },
             { 
@@ -101,7 +102,7 @@ def get_device():
 
     return device
 
-def get_dataset(dataset_name: str, upscale_factor_list: list, patch_size: int=None):
+def get_dataset(dataset_name: str, upscale_factor_list: list, channels: list, patch_size: int=None):
     common_transform = transforms.Compose([
         #transforms.RandomHorizontalFlip(),
         #transforms.RandomVerticalFlip(),
@@ -111,23 +112,12 @@ def get_dataset(dataset_name: str, upscale_factor_list: list, patch_size: int=No
     main_resolution = (1920, 1080)
     main_res_str = "{}x{}".format(main_resolution[0], main_resolution[1])
 
-    if dataset_name.lower() == "train":
-        if patch_size is None:
-            return ImageDataset("train", main_res_str, upscale_factor_list, transforms=common_transform, 
-                                download=True, verbose=True)
-        
-        return ImageDatasetPatch("train", main_res_str, upscale_factor_list, transforms=common_transform, 
-                                 download=True, patch_size=patch_size, verbose=True)
-        
-    elif dataset_name.lower() == "test":
-        if patch_size is None:
-            return ImageDataset("test", main_res_str, upscale_factor_list, transforms=common_transform, 
-                                download=True, verbose=True)
-        
-        return ImageDatasetPatch("test", main_res_str, upscale_factor_list, transforms=common_transform, 
-                                 download=True, patch_size=patch_size, verbose=True)
-    else:
-        raise Exception("The dataset name is not correct")
+    if patch_size is None:
+        return ImageDataset(dataset_name, main_res_str, upscale_factor_list, channels, transforms=common_transform, 
+                            download=True, verbose=True)
+    
+    return ImageDatasetPatch(dataset_name, main_res_str, upscale_factor_list, channels, transforms=common_transform, 
+                             download=True, patch_size=patch_size, verbose=True)
 
 # Return the array of the metrics
 def compute_metrics(dataloader, method, model, upscale_factor_list, device):
@@ -139,7 +129,7 @@ def compute_metrics(dataloader, method, model, upscale_factor_list, device):
 
         return PatchImageTool.compute_metrics_dataset_batched(
                         model, 
-                        dataset.high_res_size, 
+                        dataset.hr_data_size, 
                         dataset, size, 
                         device, method["batchSize"], verbose=True)
     elif method["method"] == "image":
@@ -148,7 +138,7 @@ def compute_metrics(dataloader, method, model, upscale_factor_list, device):
     else:
         raise Exception("The method name is not correct")
     
-def compute_metrics_alternative_method(dataloader, method, altertive_method, device, verbose=False):
+def compute_metrics_alternative_method(dataloader, method, altertive_method, upscale_index, device, verbose=False):
     dataset = dataloader.dataset
 
     psnr = np.zeros(len(dataset))
@@ -166,18 +156,18 @@ def compute_metrics_alternative_method(dataloader, method, altertive_method, dev
     batch_size = method["batchSize"]
 
     # get data and idx        
-    for i, (low_res_batch, high_res_batch) in enumerate(dataloader):
+    for i, (lr_data_tensors, hr_img_tensor) in enumerate(dataloader):
         with torch.no_grad():
-            low_res_batch = low_res_batch.to(device)
+            lr_data_tensor = lr_data_tensors[upscale_index].to(device)
 
             index = i * batch_size
             end = min(index + batch_size, len(dataset))
 
-            predicted_images = resize_function(low_res_batch)
+            predicted_images = resize_function(lr_data_tensor)
 
             for j in range(0, end - index):
                 predicted = torchUtil.tensor_to_numpy(predicted_images[j])
-                high_res = torchUtil.tensor_to_numpy(high_res_batch[j])
+                high_res = torchUtil.tensor_to_numpy(hr_img_tensor[j])
                 psnr[j + index] = metrics.peak_signal_noise_ratio(high_res, predicted)
 
                 ssim[j + index] = metrics.structural_similarity(
@@ -278,6 +268,9 @@ if __name__ == "__main__":
 
     with torch.no_grad():
         for model in config["models"]:
+            if "hyperparameters" in model:
+                model["hyperparameters"]["channels"] = config["channels"]
+
             if model["type"] != "alternative":
                 try:
                     nn_model = InitModel.create_model_static(
@@ -298,7 +291,7 @@ if __name__ == "__main__":
                 printf("** * Using method : {}".format(method["method"]))
 
                 patch_size = method["patchSize"] if method["method"].lower() == "patch" else None
-                dataset = get_dataset(dataset_name, config["upscaleFactors"], patch_size)
+                dataset = get_dataset(dataset_name, config["upscaleFactors"], config["channels"], patch_size)
 
                 # create an enumarate to get batches, use torch.utils.data.DataLoader
                 dataloader = data.DataLoader(dataset, batch_size=method["batchSize"], shuffle=False)
@@ -318,6 +311,7 @@ if __name__ == "__main__":
 
                                 psnr, ssim = compute_metrics_alternative_method(dataloader,
                                                                                 method, model["name"], 
+                                                                                config["upscaleFactors"].index(upscale_factor),
                                                                                 torch_device, verbose=True)
                         else:
                             print ("**** * Using neural network model : {}".format(model["name"]))

@@ -1,10 +1,10 @@
-from src.models.UpscaleNN import UpscaleNN
-
+from src.models.BaseNN import BaseNN
 from torch import nn, concat
 
-class UpscaleResidualNN(UpscaleNN):
-	def __init__(self, default_upscale_factor=None, num_channel=3, old_version=False) -> None:
-		super().__init__(default_upscale_factor, old_version=old_version)
+class UpscaleResidualNN(BaseNN):
+	def __init__(self, default_upscale_factor=None, num_channel: int=3, old_version: bool=False) -> None:
+		super().__init__(default_upscale_factor, num_channel=num_channel, old_version=old_version)
+		
 		self.encod1 = nn.Sequential(
 			self.DoubleConv2d(num_channel, 16),
 			nn.BatchNorm2d(16)

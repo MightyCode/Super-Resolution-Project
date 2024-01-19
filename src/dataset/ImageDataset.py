@@ -1,9 +1,12 @@
-import os
+from src.utils.PytorchUtil import PytorchUtil as torchUtil
+
+from torch.utils.data import Dataset
 from typing import Any
+
+import os
 import gdown
 import zipfile
 import json
-from torch.utils.data import Dataset
 import cv2
 import numpy as np
 import torch
@@ -15,7 +18,7 @@ class ImageDataset(Dataset):
 
     def __init__(self, 
                  dataset_name: str = "train",
-                 high_res:str = "1920x1080", 
+                 hr_name:str = "1920x1080", 
                  upscale_factors: list = [2], 
                  channels: list = ["r", "g", "b"],
                  transforms = None, 
@@ -32,24 +35,24 @@ class ImageDataset(Dataset):
 
         self.resources_folder: str = "resources"
 
-        self.high_res_name: str = high_res
+        self.hr_name: str = hr_name
 
-        temp = self.high_res_name.split("x")
-        self.high_res_size: tuple = (int(temp[0]), int(temp[1]))
+        temp = self.hr_name.split("x")
+        self.hr_data_size: tuple = (int(temp[0]), int(temp[1]))
 
         # Compute the folder path and the high resolution path
         self.dir_path = os.path.join(self.resources_folder, self.dataset_name)
-        self.high_res_path = os.path.join(self.dir_path, self.high_res_name)
+        self.hr_path = os.path.join(self.dir_path, self.hr_name)
 
         # Compute the low resolution size, names and paths
-        self.low_res_sizes = []
-        self.low_res_names = []
-        self.low_res_paths = []
+        self.lr_sizes = []
+        self.lr_names = []
+        self.lr_paths = []
 
         for factor in self.upscale_factors:
-            self.low_res_sizes.append((int(temp[0]) // factor, int(temp[1]) // factor))
-            self.low_res_names.append(f"{self.low_res_sizes[-1][0]}x{self.low_res_sizes[-1][1]}")
-            self.low_res_paths.append(os.path.join(self.dir_path, self.low_res_names[-1]))
+            self.lr_sizes.append((int(temp[0]) // factor, int(temp[1]) // factor))
+            self.lr_names.append(f"{self.lr_sizes[-1][0]}x{self.lr_sizes[-1][1]}")
+            self.lr_paths.append(os.path.join(self.dir_path, self.lr_names[-1]))
 
         self.transforms = transforms
         self.dataset_link = None
@@ -63,20 +66,20 @@ class ImageDataset(Dataset):
             self.print("Check for download and resize ...")
 
         # Check if the dataset is already downloaded
-        if download and not os.path.exists(self.high_res_path):
+        if download and not os.path.exists(self.hr_path):
             if self.verbose:
                 print("High-res dataset not present, downloading it ...")
             self.download_dataset(self.dataset_link)
 
         # Check if the low resolution datasets is already resized
-        for i, low_res_path in enumerate(self.low_res_paths):
-            if not os.path.exists(low_res_path):
+        for i, lr_patch in enumerate(self.lr_paths):
+            if not os.path.exists(lr_patch):
                 if self.verbose:
-                    print(f"Low-res {self.low_res_names[i]} dataset not present, resizing it ...")
+                    print(f"Low-res {self.lr_names[i]} dataset not present, resizing it ...")
 
-                self.resize_dataset(self.high_res_path, i)
+                self.resize_dataset(self.hr_path, i)
                     
-        self.images = os.listdir(self.high_res_path)
+        self.images = os.listdir(self.hr_path)
 
     def name(self):
         return self.dataset_name
@@ -95,37 +98,17 @@ class ImageDataset(Dataset):
             data = json.load(f)
             try:
                 dataset = data["datasets"][self.dataset_name]
-                self.dataset_link = dataset[self.high_res_name]
+                self.dataset_link = dataset[self.hr_name]
                 self.channels_position = dataset["channels"]
             except:
-                raise KeyError(f"{self.high_res_name} dataset link not found")
+                raise KeyError(f"{self.hr_name} dataset link not found")
             
-    def open_image(self, path:str):
-        if path.endswith(".png"):
-            img = cv2.imread(path)
-        elif path.endswith(".npy"):
-            # contains n channels
-            img = np.load(path) 
-
-            # invert the first and third channel
-            img[:, :, [0, 2]] = img[:, :, [2, 0]]
-        else:
-            raise ValueError(f"Image format not supported: {path}")
-
-        return img
+    def load_data_from_path(self, path:str):
+        return torchUtil.open_data(path)
         
     # Take only the interesting channels
-    def filter_channels_to_image(self, data, invert=False):
-        #if data.shape[2] <= 3:
-            #return data
-        
-        if type(data) == np.ndarray:
-            return data[:, :, 3]
-        # else torch tensor
-        elif type(data) == torch.Tensor:
-            return data[:3, :, :]
-        else:
-            raise ValueError(f"Data type not supported: {type(data)}")
+    def filter_channels_to_image(self, data):
+        return torchUtil.filter_data(data, self.channels_used, self.channels_position)
         
     def save_image(self, path:str, image):
         if path.endswith(".png"):
@@ -138,7 +121,7 @@ class ImageDataset(Dataset):
             zip_ref.extractall(extract_path)
 
     def download_dataset(self, url: str):
-        folder_path = os.path.join(self.resources_folder, self.dataset_name, self.high_res_name)
+        folder_path = os.path.join(self.resources_folder, self.dataset_name, self.hr_name)
 
         zip_path = folder_path + ".zip"
 
@@ -167,8 +150,8 @@ class ImageDataset(Dataset):
         self.print("Done!")
 
     def resize_dataset(self, source:str, index_upscale: int) -> None:
-        new_res_size = self.low_res_sizes[index_upscale]
-        new_res_name = self.low_res_names[index_upscale]
+        new_res_size = self.lr_sizes[index_upscale]
+        new_res_name = self.lr_names[index_upscale]
 
         dir_dest = os.path.join(self.dir_path, new_res_name)
 
@@ -192,14 +175,9 @@ class ImageDataset(Dataset):
         self.print("Done!")
 
     def resize_image(self, source:str, dest:str, new_res_size) -> None:
-        img = self.open_image(source)
+        img = self.load_data_from_path(source)
 
-        # our "image" can have multiple channels, so we need to resize each channel
-        result = np.zeros(( new_res_size[1], new_res_size[0], img.shape[2]), dtype=np.uint8)
-
-        for i in range(img.shape[2]):
-            dest_channel = self.channels_position[self.channels[i]]
-            result[:, :, dest_channel] = cv2.resize(img[:, :, i], new_res_size, interpolation=cv2.INTER_CUBIC)
+        result = torchUtil.resize_data(img, new_res_size, self.channels, self.channels_position)
             
         self.save_image(dest, result)
 
@@ -209,6 +187,13 @@ class ImageDataset(Dataset):
             dest_img = os.path.join(dest, img)
             os.rename(source_img, dest_img)
 
+    def _remove_folder(self, folder_path: str) -> None:
+        try:
+            os.rmdir(folder_path)
+            self.print(f"Folder '{folder_path}' removed successfully.")
+        except OSError as e:
+            self.print(f"Error: {e}")
+
     def limit_dataset(self, limit:int) -> None:
         if limit > len(self):
             raise ValueError(f"Limit must be less than {len(self)}")
@@ -217,13 +202,6 @@ class ImageDataset(Dataset):
 
     def reset_dataset_limit(self) -> None:
         self.chosen_indices = None
-
-    def _remove_folder(self, folder_path: str) -> None:
-        try:
-            os.rmdir(folder_path)
-            self.print(f"Folder '{folder_path}' removed successfully.")
-        except OSError as e:
-            self.print(f"Error: {e}")
 
     def check_index(self, index):
         if index < 0:
@@ -243,24 +221,28 @@ class ImageDataset(Dataset):
     def __getitem__(self, index) -> Any:
         index = self.check_index(index)
 
-        high_res = self.open_image(os.path.join(self.high_res_path, self.images[index]))
+        hr_data_np = self.load_data_from_path(os.path.join(self.hr_path, self.images[index]))
         
-        if self.transforms is not None:
-            high_res = self.transforms(high_res)
+        if self.transforms is None:
+            hr_data_tensor = torchUtil.numpy_to_tensor(hr_data_np)
+        else:
+            hr_data_tensor = self.transforms(hr_data_np)
+            
+        hr_img_tensor = self.filter_channels_to_image(hr_data_tensor)
 
-        high_res = self.filter_channels_to_image(high_res, invert=True)
-
-        low_res_images = []
+        lr_data_tensors = []
 
         for i, upscale in enumerate(self.upscale_factors):
-            low_res = self.open_image(os.path.join(self.low_res_paths[i], self.images[index]))
+            lr_data_np = self.load_data_from_path(os.path.join(self.lr_paths[i], self.images[index]))
 
-            if self.transforms is not None:
-                low_res = self.transforms(low_res)
+            if self.transforms is None:
+                lr_data_tensor = torchUtil.numpy_to_tensor(lr_data_np)
+            else:
+                lr_data_tensor = self.transforms(lr_data_np)
 
-            low_res_images.append(low_res)
+            lr_data_tensors.append(lr_data_tensor)
 
-        return low_res_images, high_res
+        return lr_data_tensors, hr_img_tensor
 
     @staticmethod
     def clean_dir(dir:str = "resources"):
@@ -270,15 +252,14 @@ class ImageDataset(Dataset):
     
     def print_info(self):
         # Display the sizes of the dataset
-        dir_train_high = os.path.join(self.resources_folder, self.dataset_name, self.high_res_name)
+        dir_train_high = os.path.join(self.resources_folder, self.dataset_name, self.hr_name)
 
-        self.print(f'Number of train high ({self.high_res_name}) resolution images: {len(os.listdir(dir_train_high))}')
-        for i, low_res_path in enumerate(self.low_res_paths):
-            self.print(f'Number of train low ({self.low_res_names[i]}) resolution images: {len(os.listdir(low_res_path))}')
+        self.print(f'Number of train high ({self.hr_name}) resolution images: {len(os.listdir(dir_train_high))}')
+        for i, low_res_path in enumerate(self.lr_paths):
+            self.print(f'Number of train low ({self.lr_names[i]}) resolution images: {len(os.listdir(low_res_path))}')
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    import torchvision
     import numpy as np
     
     path = "resources/train_full_channel/1920x1080/0.npy"

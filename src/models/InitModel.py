@@ -1,5 +1,6 @@
 from src.models.UpscaleNN import UpscaleNN
 from src.models.UpscaleResidualNN import UpscaleResidualNN
+from src.models.UpscaleResidual2NN import UpscaleResidual2NN
 from src.models.rdn import RDN
 
 import src.models.Trainer as nt
@@ -15,8 +16,9 @@ class InitModel:
         # to lower
         r = None
         if "upscale" in model_name.lower():
-            print(model_name.lower())
-            if "residual" in model_name.lower() or "resid" in model_name.lower():
+            if "residual2" in model_name.lower() or "resid2" in model_name.lower():
+                MODEL_INIT = UpscaleResidual2NN
+            elif "residual" in model_name.lower() or "resid" in model_name.lower():
                 MODEL_INIT = UpscaleResidualNN
             else:
                 MODEL_INIT = UpscaleNN

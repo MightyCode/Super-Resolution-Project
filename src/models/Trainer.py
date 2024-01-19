@@ -92,6 +92,24 @@ class Trainer(Model):
     TRAINING = "training"
     VALIDATION = "validation"
 
+
+    def difference(self, string1, string2):
+        # Split both strings into list items
+        string1 = string1.split()
+        string2 = string2.split()
+
+        A = set(string1) # Store all string1 list items in set A
+        B = set(string2) # Store all string2 list items in set B
+        
+        str_diff = A.symmetric_difference(B)
+        isEmpty = (len(str_diff) == 0)
+        
+        if isEmpty:
+            return "No Difference. Both Strings Are Same"
+
+        return "The Difference Between Two Strings: " + str(str_diff)
+
+
     def __init__(self, net, train_set, val_set, optimizer, stats_manager: StatsManager, device, criterion,
                  output_dir=None, batch_size=16, perform_validation_during_training=False, 
                  tensor_board=False, use_lpips_loss=True):
@@ -172,13 +190,13 @@ class Trainer(Model):
                 with open(self.state_path, 'r') as f:
                     state_file = f.read().strip()
                     inner_state = self.state().strip()
-
-                    print(state_file, inner_state)
                     # Don't take into account the last character of the file, \n    
                     if state_file != inner_state:
+                        print(state_file, inner_state)
                         raise ValueError(
                             "Cannot create this experiment: "
-                            "I found a checkpoint conflicting with the current setting.")
+                            "I found a checkpoint conflicting with the current setting.\n"
+                            + self.difference(state_file, inner_state))
                 self.load()
             else:
                 self.save()
@@ -256,6 +274,9 @@ class Trainer(Model):
     def load_checkpoint_dict(self, checkpoint):
         """Loads the experiment from the input checkpoint."""
         self.net.load_state_dict(checkpoint['Net'])
+        print(checkpoint['Optimizer'].keys())
+        print(self.optimizer.state_dict().keys())
+
         self.optimizer.load_state_dict(checkpoint['Optimizer'])
         self.history = checkpoint['History']
 
@@ -418,7 +439,6 @@ class Trainer(Model):
                         print(f"{metric_name} : {metric}", end=" ")
                     
                     print()
-                
 
             """if self.perform_validation_during_training:
                 print("Epoch {} (Time: {:.2f}s) Loss: {:.5f} psnr: {} ssim: {}".format(
@@ -439,7 +459,7 @@ class Trainer(Model):
 
             self.save()
             
-        if plot is not None and len(self.history[Trainer.TRAINING]) > 0 and self.goal_epoch != self.start_epoch:
+        if plot is not None and len(self.history[Trainer.TRAINING]) > 0 and self.goal_epoch > self.start_epoch:
             plot(self)
 
         print("Finish training for {} epochs".format(self.goal_epoch))

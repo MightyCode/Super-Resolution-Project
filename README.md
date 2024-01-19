@@ -11,3 +11,26 @@ S9 enseirb IA project for super resolution
 | Upscale residual lpips - image - x2 x4 x8  | 38.81 - 0.953 | 32.13 - 0.86 | 27.48 - 0.738 | 38.80 - 0.962 | 32.54 - 0.893 | 28.10 - 0.800 |
 | Modèle - image/Patch - x2 - Modalitées Carla  | X - X | X - X | X - X | X - X | X - X | X - X |
 | Modèle - (image/Patch) - x2 x4 x8 - Modalitées Carla | X - X | X - X | X - X | X - X | X - X | X - X |
+
+
+## Nommage des données
+
+hr => donnée ou image haute résolution
+lr => donnée ou image base résolution
+
+_data => donnée d'entrées que nous donnerai une opération un dataset[x]
+_img => ensuite si on est sur de retirer les canaux superflux des "data" ou que le modèle a forward la donnée, qui devient alors forcément une image
+
+_patch => si la donnée concerne un patch d'une donnée globale
+
+_tensor => si la donnée est un tenseur
+_np => si la donnée est un numpy
+
++(s) si la donnée est une liste 
+
+**Examples*
+
+hr_data_patch_tensors => une liste de patch de données représentés sous forme de tenseur
+
+lr_img_np => une image représenté sous un tableau numpy
+

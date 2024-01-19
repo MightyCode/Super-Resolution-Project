@@ -126,25 +126,29 @@ class Metric:
         return SSIM
 
     def SSIM_ref(image1, image2):
-        image1_gray = np.mean(image1, axis=2)
-        image2_gray = np.mean(image2, axis=2)
-
         # Compute SSIM
-        return skimage.metrics.structural_similarity(image1_gray, image2_gray, data_range=255)
+        return skimage.metrics.structural_similarity(image1, image2,
+                                     win_size=7, data_range=255, multichannel=True, channel_axis=2)
 
 if __name__ == "__main__":
     import sys
     from skimage.metrics import mean_squared_error
+    from skimage.metrics import structural_similarity as ssim
+    from skimage.metrics import peak_signal_noise_ratio as psnr
 
     # Load image
     path1 = "resources/set14/baboon.png" if len(sys.argv) < 2 else sys.argv[1]
     path2 = "results/im1.jpg" if len(sys.argv) < 3 else sys.argv[2]
         
     image1 = cv2.imread(path1)
+    # convert
+    image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2RGB)
     image2 = cv2.imread(path2)
+    # convert
+    image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2RGB)
 
     print(f"MSE : {Metric.MSE(image1, image2)} | SKImage MSE : {mean_squared_error(image1, image2)}")
-    print(f"PSNR : {Metric.PSNR(image1, image2)}")
+    print(f"PSNR : {Metric.PSNR(image1, image2)} | SKImage PSNR : {psnr(image1, image2, data_range=255)}")
     print(f"SSMH : {Metric.SSMH(image1, image2)}")
     print(f"SSIM : {Metric.SSIM(image1, image2)} | SKimage SSIM : {Metric.SSIM_ref(image1, image2)}")
     print(f"SSIM_2: {Metric.SSIM_2(image1, image2)}")
