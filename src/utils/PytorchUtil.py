@@ -25,13 +25,13 @@ class PytorchUtil:
         return (image - vmin) / (vmax - vmin)
 
     def interpolation_str_to_method(interpolation: str) -> transforms.InterpolationMode:
-        if interpolation == "bicubic":
+        if interpolation == "bicubic" or interpolation == "cubic":
             return transforms.InterpolationMode.BICUBIC
         elif interpolation == "nearest":
             return transforms.InterpolationMode.NEAREST
         elif interpolation == "lanzcos":
             return transforms.InterpolationMode.LANCZOS
-        elif interpolation == "linear":
+        elif interpolation == "linear" or interpolation == "bilinear":
             return transforms.InterpolationMode.BILINEAR
         else:
             raise ValueError(f"Interpolation not supported: {interpolation}")

@@ -53,8 +53,8 @@
 				"r" : "area",
 				"g" : "area",
 				"b" : "area",
-				"d" : "nearest",
-				"s" : "nearest"
+				"d" : "bicubic",
+				"s" : "bicubic"
 			},
 			"channel_superresolution_methods" :  {
 				"r" : "bicubic",
@@ -77,8 +77,8 @@
 				"r" : "area",
 				"g" : "area",
 				"b" : "area",
-				"d" : "nearest",
-				"s" : "nearest"
+				"d" : "bicubic",
+				"s" : "bicubic"
 			},
 			"channel_superresolution_methods" :  {
 				"r" : "bicubic",
