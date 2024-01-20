@@ -32,8 +32,8 @@ class ImageTool:
                         ssim[j + index] = metrics.structural_similarity(high_res, predicted, win_size=7,
                                                                          data_range=1, multichannel=True, channel_axis=2)
 
-                    # if verbose and ervery 1 %
-                    if verbose and (index) % (len_dataset // 20) == 0:
-                        print("{}%".format(index / (len_dataset // 100)))
+                    # if verbose and every 20 %
+                    if verbose and (index) % int(len_dataset / 20) == 0:
+                        print("{}%".format(index / (len_dataset / 100)))
 
             return psnr, ssim

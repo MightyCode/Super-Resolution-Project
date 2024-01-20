@@ -24,7 +24,49 @@ class PytorchUtil:
 
         return (image - vmin) / (vmax - vmin)
 
-    def resize_tensor(tensor: torch.Tensor, size, interpolation=transforms.InterpolationMode.BICUBIC) -> torch.Tensor:
+    def interpolation_str_to_method(interpolation: str) -> transforms.InterpolationMode:
+        if interpolation == "bicubic":
+            return transforms.InterpolationMode.BICUBIC
+        elif interpolation == "nearest":
+            return transforms.InterpolationMode.NEAREST
+        elif interpolation == "lanzcos":
+            return transforms.InterpolationMode.LANCZOS
+        elif interpolation == "linear":
+            return transforms.InterpolationMode.BILINEAR
+        else:
+            raise ValueError(f"Interpolation not supported: {interpolation}")
+
+    def resize_tensor(tensor: torch.Tensor, size, interpolation = transforms.InterpolationMode.BICUBIC) -> torch.Tensor:
+        if type(interpolation) == list:
+            if len(tensor.shape) == 3:
+                assert len(interpolation) == tensor.shape[0]
+                result = torch.zeros((tensor.shape[0], size[0], size[1]), dtype=tensor.dtype, device=tensor.device)
+
+                for i in range(tensor.shape[0]):
+                    print("interpolation ", interpolation[i], " type ", type(interpolation[i]))
+                    if type(interpolation[i]) == str:
+                        print("tranform", interpolation[i], "to", PytorchUtil.interpolation_str_to_method(interpolation[i]))
+                        interpolation[i] = PytorchUtil.interpolation_str_to_method(interpolation[i])
+                    
+                    result[i, :, :] = Resize(size, interpolation=interpolation[i], antialias=True)(tensor[i, :, :]).clamp(0, 1)
+
+                return result
+            else:
+                assert len(interpolation) == tensor.shape[1]
+
+                result = torch.zeros((tensor.shape[0], tensor.shape[1], size[0], size[1]), dtype=tensor.dtype, device=tensor.device)
+
+                for i in range(tensor.shape[1]):
+                    if type(interpolation[i]) == str:
+                        interpolation[i] = PytorchUtil.interpolation_str_to_method(interpolation[i])
+
+                    result[:, i, :, :] = Resize(size, interpolation=interpolation[i], antialias=True)(tensor[:, i, :, :]).clamp(0, 1)
+
+                return result
+
+        if type(interpolation) == str:
+            interpolation = PytorchUtil.interpolation_str_to_method(interpolation)
+
         return Resize(size, interpolation=interpolation, antialias=True)(tensor).clamp(0, 1)
 
     def resize_tensor_to_numpy(tensor: torch.Tensor, size, interpolation=transforms.InterpolationMode.BICUBIC) -> np.ndarray:
@@ -44,21 +86,65 @@ class PytorchUtil:
 
         return img
 
-    def resize_data(img, new_res_size, channel_used, channel_position) -> None:
+    def shrink_data(img, new_res_size, channel_used="bgr", channel_position={"b" : 0, "g" : 1, "r": 0},
+            channel_downresolution_methods=None) -> None:
         # our "image" can have multiple channels, so we need to resize each channel
+        assert len(channel_used) <= len(channel_position.keys())
+
         result = np.zeros((new_res_size[1], new_res_size[0], img.shape[2]), dtype=np.uint8)
 
         for i in range(img.shape[2]):
             dest_channel = channel_position[channel_used[i]]
-            result[:, :, dest_channel] = cv2.resize(img[:, :, i], new_res_size, interpolation=cv2.INTER_CUBIC)
+            method = cv2.INTER_AREA
+
+            if channel_downresolution_methods is not None:
+                wanted_method = channel_downresolution_methods[channel_used[i]]
+                if wanted_method == "bicubic":
+                    method = cv2.INTER_CUBIC
+                elif wanted_method == "nearest":
+                    method = cv2.INTER_NEAREST
+                elif wanted_method == "area":
+                    method = cv2.INTER_AREA
+                elif wanted_method == "linear":
+                    method = cv2.INTER_LINEAR
+                else:
+                    raise ValueError(f"Method not supported: {wanted_method}")
+
+            result[:, :, dest_channel] = cv2.resize(img[:, :, i], new_res_size, interpolation=method)
 
         return result
 
-    def filter_data(data, channel_filter, channel_position):
+    def filter_data_to_img(data, channel_position={"b" : 0, "g" : 1, "r": 0}, channel_used="bgr"):
+        assert len(channel_used) <= len(channel_position.keys())
+
+        # key only the channel in channel_used
+
+        if len(channel_used) == len(channel_position.keys()):
+            return data
+
         if type(data) == np.ndarray:
-            return data[:, :, :3]
+            result = np.zeros((data.shape[0], data.shape[1], len(channel_used)), dtype=data.dtype)
+            count = 0
+            for i, channel in enumerate(channel_used):
+                if channel in channel_position.keys():
+                    result[:, :, count] = data[:, :, i]
+
+                    count += 1
+
+            return result
         # else torch tensor
         elif type(data) == torch.Tensor:
-            return data[:3, :, :]
+            result = torch.zeros((len(channel_used), data.shape[1], data.shape[2]), dtype=data.dtype)
+            count = 0
+            # true false array
+            
+            for i, channel in enumerate(channel_used):
+                if channel in channel_position.keys():
+                    result[count, :, :] = data[i, :, :]
+
+                    count += 1
+
+            return result
+            
         else:
             raise ValueError(f"Data type not supported: {type(data)}")

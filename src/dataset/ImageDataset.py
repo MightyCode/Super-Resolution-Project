@@ -23,8 +23,7 @@ class ImageDataset(Dataset):
                  channels: list = ["r", "g", "b"],
                  transforms = None, 
                  download:bool = False,
-                 verbose:bool = True,
-                 seed:int = None):
+                 verbose:bool = True):
         super().__init__()
         
         self.dataset_name: str = dataset_name
@@ -99,22 +98,48 @@ class ImageDataset(Dataset):
             try:
                 dataset = data["datasets"][self.dataset_name]
                 self.dataset_link = dataset[self.hr_name]
-                self.channels_position = dataset["channels"]
+                self.channel_positions = dataset["channel_positions"]
+                self.channel_downresolution_methods = dataset["channel_downresolution_methods"]
+                self.channel_superresolution_methods = dataset["channel_superresolution_methods"]
             except:
                 raise KeyError(f"{self.hr_name} dataset link not found")
-            
+    
+    def get_channel_positions(self, channel: str = None):
+        if channel is not None:
+            return self.channel_positions[channel]
+        
+        return self.channel_positions
+    
+    def get_channel_downresolution_method(self, channel: str = None):
+        if channel is not None:
+            return self.channel_downresolution_methods[channel]
+        
+        return self.channel_downresolution_methods
+    
+    def get_channel_superresolution_method(self, channel: str = None):
+        if channel is not None:
+            return self.channel_superresolution_methods[channel]
+
+        return self.channel_superresolution_methods
+
+
     def load_data_from_path(self, path:str):
         return torchUtil.open_data(path)
         
     # Take only the interesting channels
-    def filter_channels_to_image(self, data):
-        return torchUtil.filter_data(data, self.channels_used, self.channels_position)
+    def filter_channels_to_image(self, data, use_channels=False):
+        if use_channels:
+            return torchUtil.filter_data_to_img(data, self.channel_positions, self.channels)
+        
+        return torchUtil.filter_data_to_img(data, self.channel_positions)
         
     def save_image(self, path:str, image):
         if path.endswith(".png"):
             cv2.imwrite(path, image)
         elif path.endswith(".npy"):
             np.save(path, image)
+        else:
+            raise ValueError("The image format is not supported")
 
     def unzip_file(self, file_path: str, extract_path: str):
         with zipfile.ZipFile(file_path, 'r') as zip_ref:
@@ -164,7 +189,7 @@ class ImageDataset(Dataset):
         for img in images:
             source_img = os.path.join(source, img)
             dest_img = os.path.join(dir_dest, img)
-            self.resize_image(source_img, dest_img, new_res_size)
+            self.resize_data(source_img, dest_img, new_res_size)
 
             try:
                 pass
@@ -174,10 +199,12 @@ class ImageDataset(Dataset):
 
         self.print("Done!")
 
-    def resize_image(self, source:str, dest:str, new_res_size) -> None:
+    def resize_data(self, source: str, dest: str, new_res_size) -> None:
         img = self.load_data_from_path(source)
 
-        result = torchUtil.resize_data(img, new_res_size, self.channels, self.channels_position)
+        result = torchUtil.shrink_data(
+            img, new_res_size,
+            self.channels, self.channel_positions, self.channel_downresolution_methods)
             
         self.save_image(dest, result)
 
@@ -239,6 +266,9 @@ class ImageDataset(Dataset):
                 lr_data_tensor = torchUtil.numpy_to_tensor(lr_data_np)
             else:
                 lr_data_tensor = self.transforms(lr_data_np)
+
+            # In case we are modyfing the channels, we need to filter the channels to get the image
+            lr_data_tensor = self.filter_channels_to_image(lr_data_tensor, use_channels=True)
 
             lr_data_tensors.append(lr_data_tensor)
 

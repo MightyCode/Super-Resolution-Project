@@ -214,6 +214,7 @@ class Trainer(Model):
             "Version": self.version,
             "NumberParameters": self.nb_param,
             "GoalEpoch": self.goal_epoch,
+            "Channel": self.train_set.channel,
             "Trains": []
         }
 

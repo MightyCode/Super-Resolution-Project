@@ -77,7 +77,8 @@ class ImageDatasetPatch(ImageDataset):
         else:
             hr_data_tensor = self.transforms(hr_data_np)
         
-        hr_image_torch = self.filter_channels_to_image(hr_data_tensor)
+        # Transform hr_data to hr_img by saving only the "bgr" channels
+        hr_img_torch = self.filter_channels_to_image(hr_data_tensor)
 
         lr_data_patch_tensors = []
 
@@ -88,6 +89,9 @@ class ImageDatasetPatch(ImageDataset):
                 lr_data_tensor = torchUtil.numpy_to_tensor(lr_data_np)
             else:
                 lr_data_tensor = self.transforms(lr_data_np)
+
+            # In case we are modyfing the channels, we need to filter the channels to get the image
+            lr_data_tensor = self.filter_channels_to_image(lr_data_tensor, use_channels=True)
 
             number_patch_width = self.number_patch_in_width[i]
             number_patch_height = self.number_patch_in_height[i]
@@ -100,13 +104,12 @@ class ImageDatasetPatch(ImageDataset):
             )
             
         hr_img_patch_tensor = PatchImageTool.get_patch_from_image_index(
-            hr_image_torch, 
+            hr_img_torch, 
             part_on_image, self.patch_sizes[0] * self.upscale_factors[0],
             w=number_patch_width, h=number_patch_height)
 
         #upscale to torch
         return lr_data_patch_tensors, hr_img_patch_tensor
-
 
     def get_all_patch_for_image(self, index_patch, upscale_factor=None, upscale_index=None):
         if upscale_index is None and upscale_factor is None:
@@ -132,6 +135,9 @@ class ImageDatasetPatch(ImageDataset):
 
         hr_img_tensor = self.filter_channels_to_image(hr_data_tensor)
 
+        # In case we are modyfing the channels, we need to filter the channels to get the image
+        lr_data_tensor = self.filter_channels_to_image(lr_data_tensor, use_channels=True)
+        
         lr_data_patch_tensors: list = PatchImageTool.get_patchs_from_image(
             lr_data_tensor, self.patch_sizes[upscale_index], 
                 w=number_patch_width, h=number_patch_height)

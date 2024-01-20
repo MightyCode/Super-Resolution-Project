@@ -4,13 +4,13 @@ from torch import nn
 
 
 class UpscaleNN(BaseNN):
-	def __init__(self, default_upscale_factor=None, num_channel: int=3, old_version: bool=False) -> None:
-		super().__init__()
-		self.upscale_factor = default_upscale_factor
-
-		self.old_version = old_version
-
-		self.num_channel = num_channel
+	def __init__(self, default_upscale_factor=None,
+			  num_channel: int=3, channel_interpolation: list = None,
+			  old_version: bool=False) -> None:
+		
+		super().__init__(default_upscale_factor, 
+            num_channel=num_channel, channel_interpolation=channel_interpolation,
+            old_version=old_version)
 
 		self.encoder = nn.Sequential(
 			self.DoubleConv2d(num_channel, 9),

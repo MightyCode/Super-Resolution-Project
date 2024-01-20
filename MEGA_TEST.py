@@ -52,6 +52,7 @@ def create_test_config() -> dict:
                 "weights" : "results/superresol-upscale",
                 "hyperparameters" : {
                     "learningRate" : 0.001,
+                    "channels" : ["b", "g", "r"]
                 },
             },
             {
@@ -175,8 +176,8 @@ def compute_metrics_alternative_method(dataloader, method, altertive_method, ups
                     data_range=1, multichannel=True, channel_axis=2)
 
             # if verbose and ervery 1 %
-            if verbose and (index) % (len(dataset) // 100) == 0:
-                print("{}%".format(index / (len(dataset) // 100)))
+            if verbose and (index) % (len(dataset) // 20) == 0:
+                print("{}%".format(index / len(dataset) / 100))
 
     return psnr, ssim
 
@@ -268,9 +269,6 @@ if __name__ == "__main__":
 
     with torch.no_grad():
         for model in config["models"]:
-            if "hyperparameters" in model:
-                model["hyperparameters"]["channels"] = config["channels"]
-
             if model["type"] != "alternative":
                 try:
                     nn_model = InitModel.create_model_static(
@@ -291,12 +289,6 @@ if __name__ == "__main__":
                 printf("** * Using method : {}".format(method["method"]))
 
                 patch_size = method["patchSize"] if method["method"].lower() == "patch" else None
-                dataset = get_dataset(dataset_name, config["upscaleFactors"], config["channels"], patch_size)
-
-                # create an enumarate to get batches, use torch.utils.data.DataLoader
-                dataloader = data.DataLoader(dataset, batch_size=method["batchSize"], shuffle=False)
-
-                batch_size = dataloader.batch_size
 
                 for upscale_factor in config["upscaleFactors"]:
                     printf("*** * Using upscale factor : {}".format(upscale_factor))
@@ -307,6 +299,12 @@ if __name__ == "__main__":
                         if model["type"] == "alternative":
                             # not usefull if not image
                             if  method["method"].lower() == "image":
+                                dataset = get_dataset(dataset_name, config["upscaleFactors"], ["b", "g", "r"], patch_size)
+                                # create an enumarate to get batches, use torch.utils.data.DataLoader
+                                dataloader = data.DataLoader(dataset, batch_size=method["batchSize"], shuffle=False)
+
+                                batch_size = dataloader.batch_size
+
                                 printf("**** * Using alternative method : {}".format(model["name"]))
 
                                 psnr, ssim = compute_metrics_alternative_method(dataloader,
@@ -315,6 +313,14 @@ if __name__ == "__main__":
                                                                                 torch_device, verbose=True)
                         else:
                             print ("**** * Using neural network model : {}".format(model["name"]))
+                            dataset = get_dataset(dataset_name, config["upscaleFactors"],
+                                                   model["hyperparameters"]["channels"] , patch_size)
+                            
+                            # create an enumarate to get batches, use torch.utils.data.DataLoader
+                            dataloader = data.DataLoader(dataset, batch_size=method["batchSize"], shuffle=False)
+
+                            batch_size = dataloader.batch_size
+
                             nn_model = InitModel.create_model_static(model["name"], model["weights"], model["hyperparameters"], 
                                                 upscale_factor, torch_device)
                             

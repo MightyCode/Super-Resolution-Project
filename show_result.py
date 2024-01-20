@@ -19,7 +19,7 @@ The order option takes no arguments, it is used to order the results by psnr or 
 def create_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--dataset", default="train", help="Dataset used, default is train")
-    parser.add_argument("-u", "--upscale", default=2, help="Upscale factor, default is 2")
+    parser.add_argument("-u", "--upscale", default="2", help="Upscale factor, default is 2")
     parser.add_argument("-m", "--method", default="all", help="Possible methods, default is all")
     parser.add_argument("-p", "--path", default="results/result1.json", help="Result file used, default is results/result1.json")
     parser.add_argument("-r", "--result", default="results/showresult.png", help="Save file path, default is results/showresult.png")
@@ -107,7 +107,8 @@ if __name__ == "__main__":
     associated_model_ssim = []
 
     for entry in data["entries"]:
-        if dataset != entry["dataset"] or upscale != str(entry["upscaleFactor"]):
+        if dataset != entry["dataset"] \
+              or (upscale != str(entry["upscaleFactor"]) and upscale != entry["upscaleFactor"]):
             continue
 
         psnr_results.append(entry["psnr"]["mean"])
@@ -115,6 +116,11 @@ if __name__ == "__main__":
 
         associated_model_psnr.append(entry["model"]["name"] + "-" + entry["method"]["method"])
         associated_model_ssim.append(associated_model_psnr[-1])
+
+    if len(psnr_results) == 0 or len(ssim_results) == 0:
+        print(f"No data found (dataset : {dataset}, upscale : {upscale})")
+        print("Please check these values or the result file")
+        exit()
 
     if args.order:
         associated_model_psnr, psnr_results = sort_label_metric(associated_model_psnr, psnr_results)

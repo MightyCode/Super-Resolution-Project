@@ -2,8 +2,13 @@ from src.models.BaseNN import BaseNN
 from torch import nn, concat
 
 class UpscaleResidual2NN(BaseNN):
-	def __init__(self, default_upscale_factor=None, num_channel: int=3, old_version: bool=False) -> None:
-		super().__init__(default_upscale_factor, num_channel=num_channel, old_version=old_version)
+	def __init__(self, default_upscale_factor=None,
+			  num_channel: int=3, channel_interpolation: list = None,
+			  old_version: bool=False) -> None:
+		
+		super().__init__(default_upscale_factor, 
+            num_channel=num_channel, channel_interpolation=channel_interpolation,
+            old_version=old_version)
 		
 		self.encod1 = nn.Sequential(
             self.DoubleConv2d(num_channel, 16),
@@ -52,7 +57,6 @@ class UpscaleResidual2NN(BaseNN):
 
 	
 	def forward(self, X):
-        #print(X.shape)
 		X_U = self.upscale_image(X)
 
         # take only the first 3 channels

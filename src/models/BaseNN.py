@@ -2,12 +2,19 @@ from torch import nn
 from torchvision.transforms.v2 import Resize
 from torchvision import transforms
 
+from src.utils.PytorchUtil import PytorchUtil as torchUtil
+
 class BaseNN(nn.Module):
-	def __init__(self, default_upscale_factor=None, num_channel: int=3, old_version: bool=False) -> None:
+	def __init__(self, default_upscale_factor=None,
+			  num_channel: int=3, channel_interpolation: list = None,
+			  old_version: bool=False) -> None:
 		super().__init__()
+		
 		self.upscale_factor = default_upscale_factor
 		self.old_version = old_version
+
 		self.num_channel = num_channel
+		self.channel_interpolation = channel_interpolation
     
 	def get_num_channel(self):
 		return self.num_channel
@@ -29,11 +36,12 @@ class BaseNN(nn.Module):
 		new_height = h * self.upscale_factor
 
 		if self.old_version:
-			return Resize((new_height, new_width), interpolation=transforms.InterpolationMode.BILINEAR, 
-				antialias=True)(image)
+			return torchUtil.resize_tensor(image, (new_height, new_width), interpolation=transforms.InterpolationMode.BILINEAR)
 		
-		return Resize((new_height, new_width), interpolation=transforms.InterpolationMode.BICUBIC, 
-				antialias=True)(image)
+		if self.channel_interpolation == None:
+			return torchUtil.resize_tensor(image, (new_height, new_width), interpolation=transforms.InterpolationMode.BICUBIC)
+
+		return torchUtil.resize_tensor(image, (new_height, new_width), interpolation=self.channel_interpolation)
 		
 	def DoubleConv2d(self, c_in, c_out, k_size=3):
 		if self.old_version:
