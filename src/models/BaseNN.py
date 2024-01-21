@@ -1,5 +1,4 @@
 from torch import nn
-from torchvision.transforms.v2 import Resize
 from torchvision import transforms
 
 from src.utils.PytorchUtil import PytorchUtil as torchUtil

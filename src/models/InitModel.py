@@ -26,9 +26,17 @@ class InitModel:
             else:
                 MODEL_INIT = UpscaleNN
 
+            channel_positions = 3
+            if "channel_positions" in model_hyperparameters:
+                channel_positions = len(model_hyperparameters["channel_positions"])
+            
+            channel_interpolations = None
+            if "channel_interpolations" in model_hyperparameters:
+                channel_interpolations = model_hyperparameters["channel_interpolations"]
+
             r = MODEL_INIT(default_upscale_factor=super_res_factor, 
-                           num_channel=len(model_hyperparameters["channel_positions"]), 
-                            channel_interpolation=model_hyperparameters["channel_interpolations"],
+                           num_channel=channel_positions, 
+                            channel_interpolation=channel_interpolations,
                            old_version=("old" in model_name.lower())) 
         elif "rdn" in model_name.lower():
             r = RDN(C=model_hyperparameters["C"], D=model_hyperparameters["D"], 

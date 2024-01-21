@@ -43,12 +43,12 @@ class PytorchUtil:
                 result = torch.zeros((tensor.shape[0], size[0], size[1]), dtype=tensor.dtype, device=tensor.device)
 
                 for i in range(tensor.shape[0]):
-                    print("interpolation ", interpolation[i], " type ", type(interpolation[i]))
+                    interpolation_method = interpolation[i]
                     if type(interpolation[i]) == str:
-                        print("tranform", interpolation[i], "to", PytorchUtil.interpolation_str_to_method(interpolation[i]))
-                        interpolation[i] = PytorchUtil.interpolation_str_to_method(interpolation[i])
+                        interpolation_method = PytorchUtil.interpolation_str_to_method(interpolation[i])
                     
-                    result[i, :, :] = Resize(size, interpolation=interpolation[i], antialias=True)(tensor[i, :, :]).clamp(0, 1)
+                    result[i, :, :] = Resize(size, interpolation=interpolation_method, 
+                                             antialias=True)(tensor[i, :, :]).clamp(0, 1)
 
                 return result
             else:
@@ -57,17 +57,20 @@ class PytorchUtil:
                 result = torch.zeros((tensor.shape[0], tensor.shape[1], size[0], size[1]), dtype=tensor.dtype, device=tensor.device)
 
                 for i in range(tensor.shape[1]):
+                    interpolation_method = interpolation[i]
                     if type(interpolation[i]) == str:
-                        interpolation[i] = PytorchUtil.interpolation_str_to_method(interpolation[i])
+                        interpolation_method = PytorchUtil.interpolation_str_to_method(interpolation[i])
 
-                    result[:, i, :, :] = Resize(size, interpolation=interpolation[i], antialias=True)(tensor[:, i, :, :]).clamp(0, 1)
+                    result[:, i, :, :] = Resize(size, interpolation=interpolation_method,
+                                                 antialias=True)(tensor[:, i, :, :]).clamp(0, 1)
 
                 return result
 
+        interpolation_method = interpolation
         if type(interpolation) == str:
-            interpolation = PytorchUtil.interpolation_str_to_method(interpolation)
+            interpolation_method = PytorchUtil.interpolation_str_to_method(interpolation)
 
-        return Resize(size, interpolation=interpolation, antialias=True)(tensor).clamp(0, 1)
+        return Resize(size, interpolation=interpolation_method, antialias=True)(tensor).clamp(0, 1)
 
     def resize_tensor_to_numpy(tensor: torch.Tensor, size, interpolation=transforms.InterpolationMode.BICUBIC) -> np.ndarray:
         return PytorchUtil.tensor_to_numpy(PytorchUtil.resize_tensor(tensor, size, interpolation))

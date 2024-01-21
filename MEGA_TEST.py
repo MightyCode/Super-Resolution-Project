@@ -52,7 +52,8 @@ def create_test_config() -> dict:
                 "weights" : "results/superresol-upscale",
                 "hyperparameters" : {
                     "learningRate" : 0.001,
-                    "channels" : ["b", "g", "r"]
+                    "channels" : ["b", "g", "r"],
+                    "channel_interpolations" : ["bicubic", "bicubic","bicubic"]
                 },
             },
             {
@@ -72,7 +73,6 @@ def create_test_config() -> dict:
         "upscaleFactors" : [
              2, 4, 8
         ],
-        "channels" : ["b", "g", "r"],
         "upscalingMethods" : [
             {
                 "method" : "patch",
@@ -147,11 +147,11 @@ def compute_metrics_alternative_method(dataloader, method, altertive_method, ups
 
     image_size = (dataset[0][1].shape[1], dataset[0][1].shape[2])
 
-    if altertive_method == "bilinear":
+    if "bilinear" in altertive_method:
         resize_function = transforms.Resize(image_size, interpolation=transforms.InterpolationMode.BILINEAR, antialias=True)
-    elif altertive_method == "bicubic":
+    elif "bicubic" in altertive_method:
         resize_function = transforms.Resize(image_size, interpolation=transforms.InterpolationMode.BICUBIC, antialias=True)
-    elif altertive_method == "nearest":
+    elif "nearest" in altertive_method:
         resize_function = transforms.Resize(image_size, interpolation=transforms.InterpolationMode.NEAREST, antialias=True)
 
     batch_size = method["batchSize"]
@@ -164,20 +164,20 @@ def compute_metrics_alternative_method(dataloader, method, altertive_method, ups
             index = i * batch_size
             end = min(index + batch_size, len(dataset))
 
-            predicted_images = resize_function(lr_data_tensor)
+            resized_img_tensors = resize_function(lr_data_tensor)
 
             for j in range(0, end - index):
-                predicted = torchUtil.tensor_to_numpy(predicted_images[j])
-                high_res = torchUtil.tensor_to_numpy(hr_img_tensor[j])
-                psnr[j + index] = metrics.peak_signal_noise_ratio(high_res, predicted)
+                resized_img_np = torchUtil.tensor_to_numpy(resized_img_tensors[j])
+                hr_img_np = torchUtil.tensor_to_numpy(hr_img_tensor[j])
+                psnr[j + index] = metrics.peak_signal_noise_ratio(hr_img_np, resized_img_np)
 
                 ssim[j + index] = metrics.structural_similarity(
-                    high_res, predicted, win_size=7, 
+                    hr_img_np, resized_img_np, win_size=7, 
                     data_range=1, multichannel=True, channel_axis=2)
 
             # if verbose and ervery 1 %
             if verbose and (index) % (len(dataset) // 20) == 0:
-                print("{}%".format(index / len(dataset) / 100))
+                print("{}%".format(index / len(dataset) * 100))
 
     return psnr, ssim
 
@@ -275,8 +275,7 @@ if __name__ == "__main__":
                             model["name"], model["weights"], model["hyperparameters"], 
                             2, torch_device)
                 except Exception as e:
-                    raise Exception("\n\nThe model {} was not created properly".format(
-                        model["name"])) from e
+                    raise Exception(e)
 
 
         printf("* Using device : {}".format(torch_device))
@@ -298,7 +297,7 @@ if __name__ == "__main__":
 
                         if model["type"] == "alternative":
                             # not usefull if not image
-                            if  method["method"].lower() == "image":
+                            if method["method"].lower() == "image":
                                 dataset = get_dataset(dataset_name, config["upscaleFactors"], ["b", "g", "r"], patch_size)
                                 # create an enumarate to get batches, use torch.utils.data.DataLoader
                                 dataloader = data.DataLoader(dataset, batch_size=method["batchSize"], shuffle=False)
@@ -314,15 +313,16 @@ if __name__ == "__main__":
                         else:
                             print ("**** * Using neural network model : {}".format(model["name"]))
                             dataset = get_dataset(dataset_name, config["upscaleFactors"],
-                                                   model["hyperparameters"]["channels"] , patch_size)
+                                                   model["hyperparameters"]["channel_positions"] , patch_size)
                             
                             # create an enumarate to get batches, use torch.utils.data.DataLoader
                             dataloader = data.DataLoader(dataset, batch_size=method["batchSize"], shuffle=False)
 
                             batch_size = dataloader.batch_size
 
-                            nn_model = InitModel.create_model_static(model["name"], model["weights"], model["hyperparameters"], 
-                                                upscale_factor, torch_device)
+                            nn_model = InitModel.create_model_static(model["name"], 
+                                                                     model["weights"], model["hyperparameters"], 
+                                                                     upscale_factor, torch_device)
                             
                             psnr, ssim = compute_metrics(dataloader, method, nn_model, config["upscaleFactors"], torch_device)
 

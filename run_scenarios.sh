@@ -4,10 +4,11 @@ python_interpreter="/home/maxence/miniconda3/envs/tf/bin/python"
 
 # Define the list of arguments
 arguments=(
-    "metric_set1_models_bgr.json"
     "metric_set2_algo.json"
-    "metric_set2_models_bgr.json"
+    "metric_set1_algo.json"
     "metric_set2_models_bgrds.json"
+    "metric_set1_models_bgr.json"
+    "metric_set2_models_bgr.json"
 )
 
 # Loop through the arguments and run the Python script for each file

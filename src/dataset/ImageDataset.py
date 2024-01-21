@@ -98,6 +98,7 @@ class ImageDataset(Dataset):
             try:
                 dataset = data["datasets"][self.dataset_name]
                 self.dataset_link = dataset[self.hr_name]
+                self.reference_channel_positions = dataset["reference_channel_positions"]
                 self.channel_positions = dataset["channel_positions"]
                 self.channel_downresolution_methods = dataset["channel_downresolution_methods"]
                 self.channel_superresolution_methods = dataset["channel_superresolution_methods"]
@@ -204,7 +205,7 @@ class ImageDataset(Dataset):
 
         result = torchUtil.shrink_data(
             img, new_res_size,
-            self.channels, self.channel_positions, self.channel_downresolution_methods)
+            self.reference_channel_positions, self.channel_positions, self.channel_downresolution_methods)
             
         self.save_image(dest, result)
 
