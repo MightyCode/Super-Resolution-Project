@@ -13,9 +13,9 @@
 				"b" : 0
 			},
 			"channel_downresolution_methods" :  {
-				"r" : "area",
-				"g" : "area",
-				"b" : "area"
+				"r" : "linear",
+				"g" : "linear",
+				"b" : "linear"
 			},
 			"channel_superresolution_methods" :  {
 				"r" : "bicubic",
@@ -32,9 +32,9 @@
 				"b" : 0
 			},
 			"channel_downresolution_methods" :  {
-				"r" : "area",
-				"g" : "area",
-				"b" : "area"
+				"r" : "linear",
+				"g" : "linear",
+				"b" : "linear"
 			},
 			"channel_superresolution_methods" :  {
 				"r" : "bicubic",
