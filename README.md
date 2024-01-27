@@ -28,14 +28,23 @@ D is for Depth, S is for segmentation.
 
 To obtain these results we used area down resolution methods (in order to create the dataset of smaller images) b : area, g : area, r : area, d : bicubic, s : bicubic. 
 
+
 ## Installation
 
-Version of python used : 
+Version of python we used to lauch the code: 
 ```
 3.10.13
 ```
 
-To install 
+To install the libraries, use the requirements.txt
+
+## Data set construction
+
+Version of python we used to lauch carla : 
+```
+3.8
+```
+
 
 ## Usage
 

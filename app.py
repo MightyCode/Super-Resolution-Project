@@ -3,6 +3,8 @@ import numpy as np
 import argparse
 import torch
 import os
+import cv2
+from PIL import Image
 from src.utils.PytorchUtil import PytorchUtil as torchUtil
 from torchvision import transforms
 from src.models.InitModel import InitModel
@@ -12,16 +14,17 @@ common_transform = transforms.Compose([
 ])
 
 # Function to preprocess the image for the model
-def get_data_path():
-    data_path = st.text_input("Enter the path to the image you want to upscale :")
+def get_image():
 
-    return data_path
+    uploaded_img = st.file_uploader("Choose a file", type="png")
+    return uploaded_img
 
 # Function to make predictions
 def predict(model, lr_data_numpy, device) -> np.ndarray:
     # Preprocess image by reversing the channels and applying the transform
     lr_data_torch = common_transform(lr_data_numpy).to(device)
 
+    print(lr_data_torch.shape, type(lr_data_torch))
     pred_img_tensor = model(lr_data_torch)
 
     return torchUtil.tensor_to_numpy(pred_img_tensor)
@@ -76,15 +79,17 @@ if __name__ == "__main__":
 
     # Streamlit app
     st.title("Image Super resolution")
-    img_path = get_data_path()
+    img = get_image()
     # Display the uploaded image
-    if img_path is None and os.path.exists(img_path):
-        hr_data_numpy = torchUtil.open_data(img_path)
-        
-        print(hr_data_numpy.shape)
-        st.image(torchUtil.numpy_to_image(hr_data_numpy), caption="Uploaded Image.", use_column_width=False)
+    if img is not None:
+        img = Image.open(img)
+        img = np.array(img)
+        lr_data_numpy = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+        st.image(torchUtil.numpy_to_image(lr_data_numpy), caption="Uploaded Image.", use_column_width=False)
             
-        pred_img_numpy = predict(mod, hr_data_numpy, device)
+        st.subheader(str(lr_data_numpy.shape))
+        pred_img_numpy = predict(mod, lr_data_numpy, device)
 
         st.subheader("Result:")
         st.image(torchUtil.numpy_to_image(pred_img_numpy), caption="Super resolution Image.", use_column_width=False)
