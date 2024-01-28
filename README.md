@@ -44,7 +44,19 @@ Version of python we used to lauch carla :
 ```
 3.8
 ```
+### Carla installation
 
+To install Carla Simulator, follow the instructions on the official website : https://carla.readthedocs.io/en/latest/start_quickstart/
+
+### Carla data set construction
+
+To create the dataset, first launch the Carla server as expained on the official website :
+https://carla.readthedocs.io/en/latest/start_quickstart/#running-carla
+
+Then, launch the script to create the dataset :
+```bash
+python3 carla_dataset_creation.py
+```
 
 ## Usage
 
