@@ -3,12 +3,12 @@ S9 enseirb IA project for super resolution
 
 ## Dataset 1 : images (RGB)
 
-| Type entrainement / modèles | Train PSNR-SSIM x2 | Train  PSNR-SSIM x4 | Train PSNR-SSIM x8 | Test PSNR-SSIM x2 | Test  PSNR-SSIM x4 | Test PSNR-SSIM x8 |
+| Training type / model | Train PSNR-SSIM x2 | Train  PSNR-SSIM x4 | Train PSNR-SSIM x8 | Test PSNR-SSIM x2 | Test  PSNR-SSIM x4 | Test PSNR-SSIM x8 |
 | --------------------------- | ------------ | ------------ | ------------ | ------------ | ------------ | ------------ |
 | Nearsest | 33.80 - 0.917 | 28.58 - 0.788 | 24.66 - 0.640 | 33.61 - 0.913 | 28.44 - 0.78 | 24.59 - 0.636 |
 | Billinear | 35.02 - 0.918 | 30.33 - 0.820 | 26.33 - 0.701 |  34.76 - 0.913 | 30.16 - 0.814 | 26.25 - 0.697 |
 | Bicubic | 36.53 - 0.935 | 30.70 - 0.830 | 26.25 - 0.698  | 36.20 - 0.931 | 30.50 - 0.823 | 26.17 - 0.694  |
-| Modèle de référence | X - X | X - X | X - X | X - X | X - X | X - X |
+| Reference model | X - X | X - X | X - X | X - X | X - X | X - X |
 | Upscale residual lpips - image - x2 | 38.04 - 0.943 | 30.62 - 0.828 | 26.23 - 0.697  | 37.65 - 0.938 | 30.34 - 0.820 | 26.14 - 0.693 |
 | Upscale residual lpips - image - x2 x4 x8  | 38.81 - 0.953 | 32.13 - 0.86 | 27.48 - 0.738 | 38.80 - 0.962 | 32.54 - 0.893 | 28.10 - 0.800 |
 
@@ -16,15 +16,15 @@ S9 enseirb IA project for super resolution
 
 D is for Depth, S is for segmentation.
 
-| Type entrainement / modèles | Train PSNR-SSIM x2 | Train  PSNR-SSIM x4 | Train PSNR-SSIM x8 | Test PSNR-SSIM x2 | Test  PSNR-SSIM x4 | Test PSNR-SSIM x8 |
+| Training type / model | Train PSNR-SSIM x2 | Train  PSNR-SSIM x4 | Train PSNR-SSIM x8 | Test PSNR-SSIM x2 | Test  PSNR-SSIM x4 | Test PSNR-SSIM x8 |
 | --------------------------- | ------------ | ------------ | ------------ | ------------ | ------------ | ------------ |
 | Nearsest | 36.79 - 0.964 | 33.09 - 0.905 | 28.68 - 0.822 | 36.69 - 0.966 | 32.03 - 0.911 | 28.67 - 0.835 |
 | Billinear | 38.08 - 0.968 | 33.25 - 0.919 | 29.53 - 0.854 |  37.94 - 0.967 | 33.19 - 0.925 | 39.57. - 0.866 |
 | Bicubic | 39.45 - 0.975 | 34.08 - 0.928 | 30.12 - 0.860  | 39.25 - 0.976 | 33.95 - 0.933 | 30.13 - 0.872  |
-| Modèle de référence | X - X | X - X | X - X | X - X | X - X | X - X |
+| Reference model | X - X | X - X | X - X | X - X | X - X | X - X |
 | Upscale residual lpips - image - x2 | 40.85 - 0.977 | 34.16 - 0.930 | 30.13 - 0.860 | 40.66 - 0.979 | 34.02 - 0.933 | 30.13 - 0.871 |
 | Upscale residual lpips - image - x2 x4 x8  | 41.19 - 0.979  | 34.35 - 0.931 | 30.15 - 0.861 | 41.05 - 0.980 | 34.17 - 0.936 | 30.15 - 0.872 |
-| Modèle - (image/Patch) - x2 x4 x8 - Modalitées Carla | 40.15 - 0.974 | 34.65 - 0.932 | 30.19 - 0.861 | 39.86 - 0.976 | 34.42 - 0.937 | 30.18 - 0.872 |
+| Model - (image/patch) - x2 x4 x8 - Carla features | 40.15 - 0.974 | 34.65 - 0.932 | 30.19 - 0.861 | 39.86 - 0.976 | 34.42 - 0.937 | 30.18 - 0.872 |
 
 To obtain these results we used area down resolution methods (in order to create the dataset of smaller images) b : area, g : area, r : area, d : bicubic, s : bicubic. 
 
