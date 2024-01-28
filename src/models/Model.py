@@ -4,12 +4,14 @@ import os, platform, socket, sys
 import psutil
 import torch
 
-class Model():
+class Model:
+    RESULTS_PATH = "results/"
+
     def __init__(self, net, device='cpu', output_dir=None):
         self.net = net
         self.device = device
         self.nb_param = sum(p.numel() for p in net.parameters() if p.requires_grad)
-        self.output_dir = output_dir
+        self.output_dir = Model.RESULTS_PATH + output_dir
 
         if output_dir is not None and os.path.isfile(self.output_dir):
                 checkpoint = torch.load(self.output_dir, map_location=self.device)
@@ -23,17 +25,13 @@ class Model():
                 del checkpoint
         elif output_dir is not None:
             raise ValueError("Cannot find the weights file. " + str(output_dir))
-            
-        
 
     def __call__(self, X):
         return self.forward(X)
 
 
     def forward(self, X):
-        X = X.to(self.device)
-        with torch.no_grad():
-            return self.net(X)
+        return self.net(X)
 
     def info(self):
         """Returns the setting of the experiment."""

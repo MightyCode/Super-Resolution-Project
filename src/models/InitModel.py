@@ -9,6 +9,10 @@ import src.models.Trainer as nt
 import torch
 
 class InitModel:
+    """
+    Create a model architecture from name
+    DO NOT LOAD ANY WEIGHTS !!!!
+    """
     @staticmethod
     def create_model(model_name: str,
                      model_hyperparameters: dict, 
@@ -52,6 +56,11 @@ class InitModel:
 
         return r
 
+
+    """
+    Create a model from name and load weights from path
+    The model cannot be trained
+    """
     @staticmethod
     def create_model_static(
         model_name: str, model_weights_path : str, 
@@ -59,6 +68,7 @@ class InitModel:
         super_res_factor: float, device) -> torch.nn.Module:
 
         r = InitModel.create_model(model_name, model_hyperparameters, super_res_factor, device)
+        r.eval()
 
         exp = nt.Model(r, device, model_weights_path)
 

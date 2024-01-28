@@ -92,7 +92,6 @@ class Trainer(Model):
     TRAINING = "training"
     VALIDATION = "validation"
 
-
     def difference(self, string1, string2):
         # Split both strings into list items
         string1 = string1.split()

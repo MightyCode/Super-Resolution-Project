@@ -49,7 +49,7 @@ def create_test_config() -> dict:
             {
                 "name" : "upscale",
                 "type" : "neuralNetwork",
-                "weights" : "results/superresol-upscale",
+                "weights" : "superresol-upscale",
                 "hyperparameters" : {
                     "learningRate" : 0.001,
                     "channels" : ["b", "g", "r"],
