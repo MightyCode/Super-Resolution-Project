@@ -7,6 +7,10 @@ import os
 from typing import Any
 import math
 
+"""
+Inherit from ImageDataset
+This class is used to get patch from the image
+"""
 class ImageDatasetPatch(ImageDataset):
     def __init__(self, 
                  dataset_name: str = "train",
@@ -38,13 +42,16 @@ class ImageDatasetPatch(ImageDataset):
             self.number_patch_per_upscale.append(self.number_patch_in_width[-1] * self.number_patch_in_height[-1])
         
         self.total_number_patch = self.number_patch_per_upscale[0]
-
+    
+    """
+    Redefine the len function to return the number of patch
+    """
     def __len__(self):
         if self.chosen_indices is not None:
             return len(self.chosen_indices)
         
         return super().__len__() * self.total_number_patch
-
+    
     def get_number_patch_per_image(self, upscale_factor=None, upscale_index=None):
         if upscale_index is None:
             return self.number_patch_per_upscale[self.upscale_factors.index(upscale_factor)]
@@ -62,7 +69,7 @@ class ImageDatasetPatch(ImageDataset):
         return self.patch_sizes[upscale_index] 
 
     """
-    Return the patch for all sub size
+    Return the patch for all low resolution patches and the high resolution patch
     """
     def __getitem__(self, index_patch) -> Any:
         index_patch = self.check_index(index_patch)
@@ -108,9 +115,12 @@ class ImageDatasetPatch(ImageDataset):
             part_on_image, self.patch_sizes[0] * self.upscale_factors[0],
             w=number_patch_width, h=number_patch_height)
 
-        #upscale to torch
         return lr_data_patch_tensors, hr_img_patch_tensor
 
+
+    """
+    Return the patch for all low resolution patches and the high resolution patch
+    """
     def get_all_patch_for_image(self, index_patch, upscale_factor=None, upscale_index=None):
         if upscale_index is None and upscale_factor is None:
             raise Exception("You must specify the upscale factor or the upscale index")
@@ -149,6 +159,9 @@ class ImageDatasetPatch(ImageDataset):
     
         return lr_data_patch_tensors, hr_img_patch_tensors
     
+    """
+    Get the index of the image for a certain patch index
+    """
     def get_index_for_image(self, index_patch):
         index_patch = index_patch // (self.total_number_patch)
 
@@ -157,6 +170,9 @@ class ImageDatasetPatch(ImageDataset):
 
         return index_patch
 
+    """
+    Get the starting index patch for an image
+    """
     def get_index_start_patch(self, index_patch):
         index_patch = index_patch // (self.total_number_patch)
 
@@ -165,6 +181,9 @@ class ImageDatasetPatch(ImageDataset):
     def get_full_image(self, index):
         return super().__getitem__(index)
     
+    """
+    Return the size of the full image for a certain upscale factor
+    """
     def get_low_res_full_image_size(self, upscale_factor=None, upscale_index=None):
         if upscale_index is None and upscale_factor is None:
             raise Exception("You must specify the upscale factor or the upscale index")

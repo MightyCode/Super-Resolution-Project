@@ -6,6 +6,10 @@ import torch
 import math
 
 class PatchImageTool:
+
+    """
+    Get a patch from an image from a x and y position
+    """
     @staticmethod
     def get_patch_from_image_xy(img_tensor: torch.Tensor, 
                                 x: int, y: int, 
@@ -27,7 +31,9 @@ class PatchImageTool:
 
         return img_tensor[:, start_y: end_y, start_x: end_x]
 
-
+    """
+    Get a patch from an image
+    """
     @staticmethod
     def get_patch_from_image_index(img_tensor: torch.Tensor, 
                                    index: int, 
@@ -45,7 +51,9 @@ class PatchImageTool:
 
         return PatchImageTool.get_patch_from_image_xy(img_tensor, x, y, patch_size=patch_size)
 
-
+    """
+    Get all the patches from an image
+    """
     @staticmethod
     def get_patchs_from_image(img_tensor: torch.Tensor, 
                               patch_size: int=32, 
@@ -66,8 +74,10 @@ class PatchImageTool:
         return patch_tensors
 
 
-    # Upscaling factor of this function is sf, so the predicted patch will be twice bigger
-    # Use a batch size of 32 to compute the predicted patch
+    """
+    Upscaling factor of this function is upscale_factor, so the predicted patch will be x bigger
+    Use a batch size of 32 to compute the predicted patch
+    """
     @staticmethod
     def predict_image_from_image_patches(model, 
                                          lr_img_size, lr_data_patch_tensors: list, 
@@ -202,7 +212,9 @@ class PatchImageTool:
 
             return [torchUtil.numpy_to_tensor(predicted_image) for predicted_image in pred_img_nps]
     
-
+    """
+    Predict multiple images from their patches
+    """
     @staticmethod
     # Predict multiple images at the same time in the case of batch size > patch per image
     def predict_images_from_dataset_patches(model, lr_img_size, 
@@ -228,7 +240,9 @@ class PatchImageTool:
             device, 
             patch_size=lr_patch_size, upscale_factor=upscale_factor, batch_size=batch_size)
 
-
+    """
+    Predict multiple images from their patches
+    """
     @staticmethod
     def compute_metrics_dataset(model,
                                  dataset, sub_dataset_size, 
@@ -265,7 +279,9 @@ class PatchImageTool:
 
         return psnr, ssim
 
-
+    """
+    Predict multiple images from their patches
+    """
     @staticmethod
     def compute_metrics_dataset_batched(model, lr_img_size, 
                                         dataset, sub_dataset_size, 

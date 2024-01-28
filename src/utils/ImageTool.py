@@ -5,9 +5,13 @@ import numpy as np
 import torch
 
 class ImageTool:
+    """
+    Class to compute metrics on images
+    """
     @staticmethod
     def compute_metrics_dataset(model, dataloader, upscale_index, device, verbose=False):
         model.net.eval()
+        
         with torch.no_grad():
             batch_size = dataloader.batch_size
             len_dataset = dataloader.dataset.__len__()

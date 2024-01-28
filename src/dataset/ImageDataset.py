@@ -9,9 +9,17 @@ import zipfile
 import json
 import cv2
 import numpy as np
-import torch
 
+"""
+Dataset class for the image super resolution
+Image are data of shape (C, H, W) where C is the number of channels.
+For example tensor of shape (3, 1080, 1920) is a RGB image of size 1920x1080
+"""
 class ImageDataset(Dataset):
+
+    """
+    Override the print method in order to print only if verbose is True
+    """
     def print(self, *args, **kwargs):
         if self.verbose:
             print(*args, **kwargs)
@@ -92,6 +100,9 @@ class ImageDataset(Dataset):
     def get_upscale_factor(self, index):
         return self.upscale_factors[index]
 
+    """
+    Get the dataset related information from the links.json file where all the datasets information are stored
+    """
     def load_dataset_info(self):
         with open("links.json") as f:
             data = json.load(f)
@@ -111,12 +122,17 @@ class ImageDataset(Dataset):
         
         return self.channel_positions
     
+
+    """
+    Return the method used to downsample the channel when creating the low resolution dataset
+    """
     def get_channel_downresolution_method(self, channel: str = None):
         if channel is not None:
             return self.channel_downresolution_methods[channel]
         
         return self.channel_downresolution_methods
     
+
     def get_channel_superresolution_method(self, channel: str = None):
         if channel is not None:
             return self.channel_superresolution_methods[channel]
@@ -127,13 +143,18 @@ class ImageDataset(Dataset):
     def load_data_from_path(self, path:str):
         return torchUtil.open_data(path)
         
-    # Take only the interesting channels
+    """
+    Take only the interesting channels in order to tranform data of shape (C, H, W) to (3, H, W)
+    """
     def filter_channels_to_image(self, data, use_channels=False):
         if use_channels:
             return torchUtil.filter_data_to_img(data, self.channel_positions, self.channels)
         
         return torchUtil.filter_data_to_img(data, self.channel_positions)
-        
+    
+    """
+    Save the image in the correct format
+    """
     def save_image(self, path:str, image):
         if path.endswith(".png"):
             cv2.imwrite(path, image)
@@ -142,10 +163,16 @@ class ImageDataset(Dataset):
         else:
             raise ValueError("The image format is not supported")
 
+    """
+    Unzip the file at file_path and extract it to extract_path
+    """
     def unzip_file(self, file_path: str, extract_path: str):
         with zipfile.ZipFile(file_path, 'r') as zip_ref:
             zip_ref.extractall(extract_path)
 
+    """
+    Download the dataset from the link and extract it to the resources folder
+    """
     def download_dataset(self, url: str):
         folder_path = os.path.join(self.resources_folder, self.dataset_name, self.hr_name)
 
@@ -175,6 +202,9 @@ class ImageDataset(Dataset):
         
         self.print("Done!")
 
+    """
+    Resize the dataset at source and save it at the destination
+    """
     def resize_dataset(self, source:str, index_upscale: int) -> None:
         new_res_size = self.lr_sizes[index_upscale]
         new_res_name = self.lr_names[index_upscale]
@@ -200,6 +230,9 @@ class ImageDataset(Dataset):
 
         self.print("Done!")
 
+    """
+    Resize the data at source and save it at the destination
+    """
     def resize_data(self, source: str, dest: str, new_res_size) -> None:
         img = self.load_data_from_path(source)
 
@@ -222,16 +255,28 @@ class ImageDataset(Dataset):
         except OSError as e:
             self.print(f"Error: {e}")
 
-    def limit_dataset(self, limit:int) -> None:
+
+    """
+    Limit the size of the dataset to a certain number of data.
+    Choose randomly the data to keep
+    """
+    def limit_dataset(self, limit: int) -> None:
         if limit > len(self):
             raise ValueError(f"Limit must be less than {len(self)}")
         
         self.chosen_indices = np.random.choice(len(self), limit, replace=False)
 
+    """
+    Remove the limit on the dataset size
+    """
     def reset_dataset_limit(self) -> None:
         self.chosen_indices = None
 
-    def check_index(self, index):
+    """
+    Check if the index is valid, if it is negative, it will be converted to a positive index
+    If dataset is limited, the index will be converted to the chosen_indices index
+    """
+    def check_index(self, index: int):
         if index < 0:
             index = len(self) + index
 
@@ -244,7 +289,7 @@ class ImageDataset(Dataset):
         return len(self.images) if self.chosen_indices is None else len(self.chosen_indices)
 
     """
-    Indices are as follow, 0 -> high_res[0] + low_res[0][0] + upscale_factor[0], 1 -> high_res[0] + low_res[0][1] + upscale_factor[1]
+    Return the data of all low resolution and the high resolution data
     """
     def __getitem__(self, index) -> Any:
         index = self.check_index(index)
@@ -274,13 +319,10 @@ class ImageDataset(Dataset):
             lr_data_tensors.append(lr_data_tensor)
 
         return lr_data_tensors, hr_img_tensor
-
-    @staticmethod
-    def clean_dir(dir:str = "resources"):
-        for d in os.listdir(dir):
-            if os.path.isdir(d):
-                os.rmdir(d)
     
+    """
+    Print some useful information about the dataset
+    """
     def print_info(self):
         # Display the sizes of the dataset
         dir_train_high = os.path.join(self.resources_folder, self.dataset_name, self.hr_name)
@@ -288,6 +330,12 @@ class ImageDataset(Dataset):
         self.print(f'Number of train high ({self.hr_name}) resolution images: {len(os.listdir(dir_train_high))}')
         for i, low_res_path in enumerate(self.lr_paths):
             self.print(f'Number of train low ({self.lr_names[i]}) resolution images: {len(os.listdir(low_res_path))}')
+
+    @staticmethod
+    def clean_dir(dir: str = "resources"):
+        for d in os.listdir(dir):
+            if os.path.isdir(d):
+                os.rmdir(d)
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
