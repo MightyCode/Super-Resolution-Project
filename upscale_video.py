@@ -5,23 +5,20 @@ import cv2
 from src.utils.PytorchUtil import PytorchUtil as torchUtil
 from torchvision import transforms
 from src.models.InitModel import InitModel
+from src.utils.create_video_from_frames import create_video
 
 common_transform = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-def upsale_video(video_path: str, model, video_out: str, show):
+def upsale_video(video_path: str, model, show):
     cap = cv2.VideoCapture(video_path)
 
     if not cap.isOpened():
-        print("Erreur lors de l'ouverture de la vidéo.")
+        print("Erreur lors de l'ouverture de la vidÃ©o.")
         exit()
 
-    frame_width = int(cap.get(3))
-    frame_height = int(cap.get(4))
-    fps = cap.get(5)
-
-    out = cv2.VideoWriter(video_out, cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame_width, frame_height))
+    frames = []
 
     while True:
         ret, lr_data_numpy = cap.read()
@@ -41,24 +38,25 @@ def upsale_video(video_path: str, model, video_out: str, show):
         output_image: np.ndarray = (pred_img_np * 255.0).astype(np.uint8)
 
         if show:
-            cv2.imshow('Sortie du modele', pred_img_np)
+            cv2.imshow('frame', output_image)
 
-        out.write(output_image)
+        frames.append(output_image)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
     cap.release()
-    out.release()
     cv2.destroyAllWindows()
+
+    return frames
 
 def get_arg_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--path", help="path to the model", type=str, default="weights-upscale-residual-lpis-v.2")
+    parser.add_argument("-p", "--modelpath", help="path to the model", type=str, default="weights-upscale-residual-lpis-v.2")
     parser.add_argument("-c", "--channel", help="channel used by the model", type=str, default="bgr")
     parser.add_argument("-u", "--upscale", help="upscale factor", type=int, default=2)
-    parser.add_argument("-v", "--video", help="upscale video", type=str, default="resources/video.mp4")
-    parser.add_argument("-o", "--output", help="upscale video", type=str, default='results/video_out.mp4')
+    parser.add_argument("-v", "--video", help="upscale video", type=str, default="video.mp4")
+    parser.add_argument("-o", "--output", help="upscale video", type=str, default='video_out.mp4')
     parser.add_argument("-s", "--show", help="show video", type=bool, default=False)
 
     return parser
@@ -68,10 +66,8 @@ if __name__ == "__main__":
     parser = get_arg_parser()
     args = parser.parse_args()
 
-    RESULT_PATH = "results/"
-
-    PATH = args.path
-    PATH = RESULT_PATH + PATH    
+    RESOURCES_PATH = "resources/"
+    RESULT_PATH = "results/" 
 
     CHANNELS = args.channel
     UPSCALE_FACTOR = args.upscale
@@ -87,7 +83,7 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     model = InitModel.create_model(
-        PATH, 
+        RESULT_PATH + args.modelpath, 
         {
             "learningRate": 0.001,
             "channel_positions" : CHANNELS,
@@ -95,4 +91,6 @@ if __name__ == "__main__":
         }, 
         UPSCALE_FACTOR, device)
 
-    upsale_video(args.video, model, args.output, args.show)
+    frames = upsale_video(RESOURCES_PATH + args.video, model, args.show)
+
+    create_video(frames, RESULT_PATH + args.output)
