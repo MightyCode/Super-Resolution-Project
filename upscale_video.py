@@ -12,7 +12,7 @@ common_transform = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-def upsale_video(video_path, model, video_out, show):
+def upsale_video(video_path: str, model, video_out: str, show):
     cap = cv2.VideoCapture(video_path)
 
     if not cap.isOpened():
@@ -26,30 +26,27 @@ def upsale_video(video_path, model, video_out, show):
     out = cv2.VideoWriter(video_out, cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame_width, frame_height))
 
     while True:
-        ret, frame = cap.read()
-
-        if show:
-            cv2.imshow('frame', frame)
+        ret, lr_data_numpy = cap.read()
 
         if not ret:
             break
 
-        frame = (frame / 255.0).astype(np.float32)
-        lr_data_numpy = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        lr_data_numpy = frame
+        if show:
+            cv2.imshow('frame', lr_data_numpy)
+
 
         lr_data_torch = common_transform(lr_data_numpy).to(device)
 
         pred_img_tensor = model(lr_data_torch.unsqueeze(0)).squeeze(0)
 
-        output_frame = torchUtil.tensor_to_numpy(pred_img_tensor)
+        pred_img_np = torchUtil.tensor_to_numpy(pred_img_tensor)
 
-        output_frame = (output_frame * 255).astype(np.uint8)
+        output_image = (pred_img_np * 255.0).astype(np.uint8)
 
         if show:
-            cv2.imshow('Sortie du modele', output_frame)
-        
-        out.write(output_frame)
+            cv2.imshow('Sortie du modele', output_image)
+
+        out.write(output_image)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -57,8 +54,6 @@ def upsale_video(video_path, model, video_out, show):
     cap.release()
     out.release()
     cv2.destroyAllWindows()
-
-
 
 def get_arg_parser():
     parser = argparse.ArgumentParser()
