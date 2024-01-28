@@ -1,9 +1,7 @@
 import numpy as np
 import argparse
 import torch
-import os
 import cv2
-from PIL import Image
 from src.utils.PytorchUtil import PytorchUtil as torchUtil
 from torchvision import transforms
 from src.models.InitModel import InitModel
@@ -34,17 +32,16 @@ def upsale_video(video_path: str, model, video_out: str, show):
         if show:
             cv2.imshow('frame', lr_data_numpy)
 
+        lr_data_torch: torch.Tensor = common_transform(lr_data_numpy)
 
-        lr_data_torch = common_transform(lr_data_numpy).to(device)
+        pred_img_tensor: torch.Tensor = model(lr_data_torch.to(device).unsqueeze(0)).squeeze(0)
 
-        pred_img_tensor = model(lr_data_torch.unsqueeze(0)).squeeze(0)
+        pred_img_np: np.ndarray = torchUtil.tensor_to_numpy(pred_img_tensor)
 
-        pred_img_np = torchUtil.tensor_to_numpy(pred_img_tensor)
-
-        output_image = (pred_img_np * 255.0).astype(np.uint8)
+        output_image: np.ndarray = (pred_img_np * 255.0).astype(np.uint8)
 
         if show:
-            cv2.imshow('Sortie du modele', output_image)
+            cv2.imshow('Sortie du modele', pred_img_np)
 
         out.write(output_image)
 
