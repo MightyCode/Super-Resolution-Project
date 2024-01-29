@@ -69,10 +69,9 @@ if __name__ == "__main__":
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    mod = InitModel.create_model(
-        PATH, 
+    mod = InitModel.create_model_static(
+        PATH, PATH,
         {
-            "learningRate": 0.001,
             "channel_positions" : CHANNELS,
             "channel_interpolations" : [CHANNEL_INTERPOLATIONS[c] for c in CHANNELS],
         }, 

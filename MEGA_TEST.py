@@ -51,7 +51,6 @@ def create_test_config() -> dict:
                 "type" : "neuralNetwork",
                 "weights" : "superresol-upscale",
                 "hyperparameters" : {
-                    "learningRate" : 0.001,
                     "channels" : ["b", "g", "r"],
                     "channel_interpolations" : ["bicubic", "bicubic","bicubic"]
                 },
