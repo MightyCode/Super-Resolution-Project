@@ -41,7 +41,7 @@ Create an argument parser :
 """
 def get_arg_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--path", help="path to the model", type=str, default="weights-upscale-residual-lpis-v.2")
+    parser.add_argument("-p", "--path", help="path to the model", type=str, default="weights-upscale-residual-lpips-v.2")
     parser.add_argument("-c", "--channel", help="channel used by the model", type=str, default="bgr")
     parser.add_argument("-u", "--upscale", help="upscale factor", type=int, default=2)
 
@@ -53,8 +53,7 @@ if __name__ == "__main__":
 
     RESULT_PATH = "results/"
 
-    PATH = args.path
-    PATH = RESULT_PATH + PATH    
+    PATH = args.path  
 
     CHANNELS = args.channel
     UPSCALE_FACTOR = args.upscale
