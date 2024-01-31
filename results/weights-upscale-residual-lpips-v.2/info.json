@@ -1,0 +1,42 @@
+{
+    "Version": 1.0,
+    "NumberParameters": 117395,
+    "GoalEpoch": 50,
+    "Channel" : ["b", "g", "r"],
+    "Trains": [
+        {
+            "DeviceName": "CIL",
+            "SocketName": "CIL",
+            "CPU": " Intel(R) Xeon(R) W-1270 CPU @ 3.40GHz",
+            "TorchDevice": "cuda",
+            "GPU": "NVIDIA GeForce RTX 3060",
+            "RAM": "31.07 GB",
+            "Python": "3.8.18 (default, Oct 20 2023, 14:18:11) \n[GCC 12.3.0]",
+            "StartEpoch": 0,
+            "EndEpoch": 29,
+            "BatchSize": 20,
+            "TrainingSize": 8000,
+            "ValidationSize": 2000,
+            "TrainingStartDate": "2024-01-08 12:09:10.703274",
+            "TrainingTime": "35740.76 s",
+            "UpscaleFactor" : [2, 4, 8]
+        },
+        {
+            "DeviceName": "CIL",
+            "SocketName": "CIL",
+            "CPU": " Intel(R) Xeon(R) W-1270 CPU @ 3.40GHz",
+            "TorchDevice": "cuda",
+            "GPU": "NVIDIA GeForce RTX 3060",
+            "RAM": "31.07 GB",
+            "Python": "3.8.18 (default, Oct 20 2023, 14:18:11) \n[GCC 12.3.0]",
+            "StartEpoch": 30,
+            "EndEpoch": 49,
+            "BatchSize": 20,
+            "TrainingSize": 8000,
+            "ValidationSize": 2000,
+            "TrainingStartDate": "2024-01-09 16:15:22.192139",
+            "TrainingTime": "23859.22 s",
+            "UpscaleFactor" : [2, 4, 8]
+        }
+    ]
+}

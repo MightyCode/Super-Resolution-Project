@@ -1,0 +1,1 @@
+## Best version of our super resolution model right now, the plot is broken as we do the average between all super resolution
