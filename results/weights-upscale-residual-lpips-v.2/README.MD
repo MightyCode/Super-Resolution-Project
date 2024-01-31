@@ -1,1 +1,3 @@
-## Best version of our super resolution model right now, the plot is broken as we do the average between all super resolution
+# Best version of our super resolution model
+
+The model as broken plots, we train it using x2 x4 x8 patches but we averaged the results as x2 patchs.
