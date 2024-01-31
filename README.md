@@ -94,3 +94,19 @@ hr_data_patch_tensors => a list of data patches represented as a tensor.
 
 lr_img_np => an image presented as numpy array.
 
+
+## Folders
+
+### Resources
+
+All the datasets, used images and json data used for tests purpose should be placed here.
+
+### Results
+
+All the weights, the upscaled images and created information for tests purpose will be saved here.
+
+Weights : 
+```
+weights-upscale-residual-lpips-v.2 : our best model, BGR model, uses rgb images
+weights-upscale-residual2-lpips-v.4.1 : best BGRDS model, uses numpy array as images
+```

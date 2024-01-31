@@ -1,0 +1,30 @@
+{
+    "Version": 1.0,
+    "NumberParameters": 483059,
+    "GoalEpoch": 50,
+    "Channel": [
+        "b",
+        "g",
+        "r",
+        "d",
+        "s"
+    ],
+    "Trains": [
+        {
+            "DeviceName": "MUR",
+            "SocketName": "MUR",
+            "CPU": " Intel(R) Xeon(R) W-1270 CPU @ 3.40GHz",
+            "TorchDevice": "cuda",
+            "GPU": "NVIDIA GeForce RTX 3060",
+            "RAM": "31.08 GB",
+            "Python": "3.11.6 (main, Oct  8 2023, 05:06:43) [GCC 13.2.0]",
+            "StartEpoch": 0,
+            "EndEpoch": 49,
+            "BatchSize": 20,
+            "TrainingSize": 4000,
+            "ValidationSize": 1000,
+            "TrainingStartDate": "2024-01-22 11:47:20.913368",
+            "TrainingTime": "30405.34 s"
+        }
+    ]
+}
