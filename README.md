@@ -102,6 +102,17 @@ In fact our datasets return all the low resolutions data and the associated high
 
 ## Folders
 
+The architecture of the project is as follows:
+
+```
+├── resources     # folder containing our datasets
+├── results       # output directory for training and testing
+└── src           # utility code
+    ├── dataset   # data loader
+    ├── models    # models definitions
+    └── utils     # utility functions for data manipulation
+```
+
 ### **resources**
 
 All the datasets, used images and json data used for tests purpose should be placed here.
