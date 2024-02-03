@@ -91,7 +91,6 @@ _patch => if the data is a patch of a higher data.
 
 _tensor => if the data is a tensor
 _np => if the data is numpy array
- => if the data is 
 
 +(s) if the data is a list 
 
