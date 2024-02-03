@@ -71,35 +71,33 @@ From there, the controls are displayed on the commad line. You can change the ve
 
 The BGR format or derivatives (like BGRDS) is and must be always used. It should be converted to RBG only when displaying the data.
 
-Tensor sizes ((size of batch), number of channels, height, width)
-Numpy array size ((size of batch), width, height, number of channels)
+Tensor sizes ((batch size), number of channels, height, width)
+Numpy array size ((batch size), width, height, number of channels)
 
 Data number of channels is a minimum of 3 and can be more.
-Image number of channems is 3.
+Image number of channels is 3.
 
-### Data naming
+### Data naming convention
 
-hr => data or image of high resolution
-lr => data or image low resolution
+`hr` => high resolution data or image \
+`lr` => low resolution data or image
 
-_data => entry data that is getable using operation [X] where X is an index.
-_img => then when we are sure that the data is converted to a 3 channel image, we name the associated variable as stated.
+`_data` => entry data that is getable using operation `[X]` where `X` is an index. \
+`_img` => when the data is guaranteed to have 3 channels, we name the associated variable as stated.
 
 In fact our datasets return all the low resolutions data and the associated high resolution data.
 
-_patch => if the data is a patch of a higher data.
-
-_tensor => if the data is a tensor
-_np => if the data is numpy array
- => if the data is 
+`_patch` => if the data is a subset of a greater size data. \
+`_tensor` => if the data is a tensor \
+`_np` => if the data is numpy array
 
 +(s) if the data is a list 
 
-**Examples*
+**Examples**
 
-hr_data_patch_tensors => a list of data patches represented as a tensor.
+`hr_data_patch_tensors` => a list of data patches represented as a tensor.
 
-lr_img_np => an image presented as numpy array.
+`lr_img_np` => an image presented as numpy array.
 
 
 ## Folders
@@ -110,7 +108,7 @@ All the datasets, used images and json data used for tests purpose should be pla
 
 ### **results**
 
-All the weights, the upscaled images and created information for tests purpose will be saved here.
+All the weights, upscaled images and created information for tests purpose will be saved here.
 
 Weights : 
 ```
@@ -131,7 +129,7 @@ A json file that contains our dataset links and their related information (refer
 
 #### *train_model.ipynb*
 
-A Jupyter notebook which aims to help training a new model or to verify the performance of an existing one. There are four parts in this notebook. The first part is the context definition, where the user can customize its training. The second part (optional) is for the training of the overfit model, which can help the user know if, at least, the model can converge. The third part is the regular training of a model. And the fourth part aims to show different illustrations of super resolution and aims to compute several metrics. 
+A Jupyter notebook to train a new model or to evaluate the performance of an existing one. There are four parts in this notebook. The first part is the context definition, where the user can customize its training. The second part (optional) is for the training of the overfit model, which can help the user know if, at least, the model can converge. The third part is the regular training of a model. And the fourth part aims to show different illustrations of super resolution and aims to compute several metrics. 
 
 #### *test_model_on_image.ipynb*
 
@@ -139,15 +137,15 @@ A Jupyter notebook where the user can use a model and an image. This notebook wo
 
 #### *upscale_video.py*
 
-This script serves to upscale a full mp4 video, it will work only in the "only super resolution" mode. 
+This script serves to upscale a full mp4 video, it will only work with the "only super resolution" mode. 
 
 #### *app.py*
 
-A script that opens a local server using streamlit, in order to make the user choose an image to super resolution.
+A script that opens a local server using streamlit, in order to make the user choose an image that will be upscaled.
 
 #### *MEGA_TEST.py*
 
-Good name, isn't it ? In particular, this script takes as an argument the path to a json configuration file that will guide the tests. The configuration file will list the models to be tested, how to initialise them, the datasets to be tested, etc ... The result is two results files. One file with the mean, variance, minimum and maximum of each score for the PSNR and SSIM metrics. And a second "_full" file with a list of all the scores for all the images in the datasets.
+Good name, isn't it ? In particular, this script takes as an argument the path to a json configuration file that will guide the tests. The configuration file will list the models to be tested, how to initialise them, the datasets to be tested, etc... The output is two results files. One file with the mean, variance, minimum and maximum of each score for the PSNR and SSIM metrics. And a second `_full` file with a list of all the scores for all the images in the datasets.
 
 #### *run_scenarios.sh*
 
