@@ -97,16 +97,59 @@ lr_img_np => an image presented as numpy array.
 
 ## Folders
 
-### Resources
+### **resources**
 
 All the datasets, used images and json data used for tests purpose should be placed here.
 
-### Results
+### **results**
 
 All the weights, the upscaled images and created information for tests purpose will be saved here.
 
 Weights : 
 ```
 weights-upscale-residual-lpips-v.2 : our best model, BGR model, uses rgb images
+
 weights-upscale-residual2-lpips-v.4.1 : best BGRDS model, uses numpy array as images
 ```
+
+### **src**
+
+Contains all our "library" code.
+
+### Current folder
+
+#### *link.json*
+
+A json file that contains our dataset links and their related information (reference channel position, channel position, method for each channel in order to create the lower size dataset).
+
+#### *train_model.ipynb*
+
+A Jupyter notebook which aims to help training a new model or to verify the performance of an existing one. There are four parts in this notebook. The first part is the context definition, where the user can customize its training. The second part (optional) is for the training of the overfit model, which can help the user know if, at least, the model can converge. The third part is the regular training of a model. And the fourth part aims to show different illustrations of super resolution and aims to compute several metrics. 
+
+#### *test_model_on_image.ipynb*
+
+A Jupyter notebook where the user can use a model and an image. This notebook works in two different ways. The "down resolution first", which will downscale the image by the upscale factor then try to reconstruct the original image using our model. We can use the original image as reference for metric computation or just for the user to judge. The "only super resolution" mode will only upscale the image by the upscale factor. 
+
+#### *upscale_video.py*
+
+This script serves to upscale a full mp4 video, it will work only in the "only super resolution" mode. 
+
+#### *app.py*
+
+A script that opens a local server using streamlit, in order to make the user choose an image to super resolution.
+
+#### *MEGA_TEST.py*
+
+Good name, isn't it ? In particular, this script takes as an argument the path to a json configuration file that will guide the tests. The configuration file will list the models to be tested, how to initialise them, the datasets to be tested, etc ... The result is two results files. One file with the mean, variance, minimum and maximum of each score for the PSNR and SSIM metrics. And a second "_full" file with a list of all the scores for all the images in the datasets.
+
+#### *run_scenarios.sh*
+
+A bash script designed to run several test configurations.
+
+#### *manipulate_result.py*
+
+This script takes as its argument a method and the path to one or two result files. It allows the user to modify them in several ways.
+
+#### *show_results.py*
+
+This script takes as its argument a result path and many contexts argument. It will show the results using matplotlib.
