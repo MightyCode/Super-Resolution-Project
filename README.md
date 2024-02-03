@@ -31,32 +31,39 @@ To obtain these results we used area down resolution methods (in order to create
 
 ## Installation
 
-Version of python we used to lauch the code: 
+The project is guaranteed to work with the folowing versions of python (other may work, but are not guaranteed):
 ```
 3.10.13
+3.8
 ```
 
-To install the libraries, use the requirements.txt
+To install the libraries, use the `requirements.txt` file:
+
+```bash
+pip install -r requirements.txt
+```
 
 ## Data set construction
 
-Version of python we used to lauch carla : 
+The carla simulator works on the following python version: 
 ```
 3.8
 ```
 ### Carla installation
 
-To install Carla Simulator, follow the instructions on the official website : https://carla.readthedocs.io/en/latest/start_quickstart/
+To install Carla Simulator, follow the instructions on the official website: https://carla.readthedocs.io/en/latest/start_quickstart/
 
-### Carla data set construction
+### Images recording
 
-To create the dataset, first launch the Carla server as expained on the official website :
+To record images from the simulator, first launch the Carla server as expained on the official website :
 https://carla.readthedocs.io/en/latest/start_quickstart/#running-carla
 
-Then, launch the script to create the dataset :
+Then, launch the client with the example script provided :
 ```bash
-python3 carla_dataset_creation.py
+python3 carla/PythonAPI/examples/manual_control.py
 ```
+
+From there, the controls are displayed on the commad line. You can change the vehicle, the weather, etc. To start or stop recording images, press the "R" key.
 
 ## Usage
 
